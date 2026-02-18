@@ -28,9 +28,8 @@ Subcommands:
 
   get <id>                          Get a single market by ID
   quotes <id>                       Current quotes for a market
-  orderbook <id>                    Orderbook for a market
+  orderbook <id>                    Full orderbook (YES and NO sides)
     --depth <n>                       Number of price levels
-    --outcome-index <n>               Outcome index
 
   simulate <id>                     Simulate a trade
     --side <yes|no>                   (required) Trade side
@@ -159,11 +158,8 @@ async function orderbook(
   const id = requirePositional(positional, 0, "id", "context-cli markets orderbook <id>");
   const ctx = readClient(flags as ClientFlags);
 
-  const result = await ctx.markets.orderbook(id, {
+  const result = await ctx.markets.fullOrderbook(id, {
     depth: flags["depth"] ? parseInt(flags["depth"], 10) : undefined,
-    outcomeIndex: flags["outcome-index"]
-      ? parseInt(flags["outcome-index"], 10)
-      : undefined,
   });
 
   out(result);

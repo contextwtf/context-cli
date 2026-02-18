@@ -43,12 +43,22 @@ Subcommands:
     --size <n>                        Max size
     --trader <address>                Trader address
 
-  create                            Place an order (requires signer)
+  create                            Place a limit order (requires signer)
     --market <id>                     (required) Market ID
     --outcome <yes|no>                (required) Outcome
     --side <buy|sell>                 (required) Side
     --price <1-99>                    (required) Price in cents
     --size <n>                        (required) Size (>=1)
+    --expiry-seconds <n>              Expiry in seconds (optional)
+    --inventory-mode <mode>           any (default), hold (require tokens), mint (mint on fill)
+    --maker-role <role>               any (default), taker (fill-only). Do NOT use maker — breaks settlement.
+
+  market                            Place a market order (requires signer)
+    --market <id>                     (required) Market ID
+    --outcome <yes|no>                (required) Outcome
+    --side <buy|sell>                 (required) Side
+    --max-price <1-99>                (required) Max price in cents
+    --max-size <n>                    (required) Max size (>=1)
     --expiry-seconds <n>              Expiry in seconds (optional)
 
   cancel <nonce>                    Cancel an order by nonce (requires signer)
@@ -90,6 +100,8 @@ export default async function handleOrders(
       return simulate(flags);
     case "create":
       return create(flags);
+    case "market":
+      return marketOrder(flags);
     case "cancel":
       return cancel(positional, flags);
     case "cancel-replace":
@@ -238,6 +250,28 @@ function parsePlaceOrderFlags(flags: Record<string, string>, usage: string) {
     fail("--size must be >= 1", { received: sizeRaw });
   }
 
+  const INVENTORY_MODES: Record<string, 0 | 1 | 2> = { any: 0, hold: 1, mint: 2 };
+  const MAKER_ROLES: Record<string, 0 | 2> = { any: 0, taker: 2 };
+
+  let inventoryMode: 0 | 1 | 2 | undefined;
+  if (flags["inventory-mode"]) {
+    inventoryMode = INVENTORY_MODES[flags["inventory-mode"]];
+    if (inventoryMode === undefined) {
+      fail("--inventory-mode must be 'any', 'hold', or 'mint'", { received: flags["inventory-mode"] });
+    }
+  }
+
+  let makerRole: 0 | 2 | undefined;
+  if (flags["maker-role"]) {
+    if (flags["maker-role"] === "maker" || flags["maker-role"] === "1") {
+      fail("makerRoleConstraint=1 (maker/post-only) breaks settlement when two maker-only orders cross — use 'any' instead", { received: flags["maker-role"] });
+    }
+    makerRole = MAKER_ROLES[flags["maker-role"]];
+    if (makerRole === undefined) {
+      fail("--maker-role must be 'any' or 'taker'", { received: flags["maker-role"] });
+    }
+  }
+
   return {
     marketId,
     outcome: outcome as "yes" | "no",
@@ -247,6 +281,8 @@ function parsePlaceOrderFlags(flags: Record<string, string>, usage: string) {
     expirySeconds: flags["expiry-seconds"]
       ? parseInt(flags["expiry-seconds"], 10)
       : undefined,
+    inventoryModeConstraint: inventoryMode,
+    makerRoleConstraint: makerRole,
   };
 }
 
@@ -385,5 +421,50 @@ async function bulk(flags: Record<string, string>): Promise<void> {
 
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.orders.bulk(creates as any, cancelNonces);
+  out(result);
+}
+
+// ---------------------------------------------------------------------------
+// market — place a market order (requires signer)
+// ---------------------------------------------------------------------------
+
+async function marketOrder(flags: Record<string, string>): Promise<void> {
+  const usage =
+    "context-cli orders market --market <id> --outcome <yes|no> --side <buy|sell> --max-price <1-99> --max-size <n>";
+  const marketId = requireFlag(flags, "market", usage);
+  const outcome = requireFlag(flags, "outcome", usage);
+  const side = requireFlag(flags, "side", usage);
+  const maxPriceRaw = requireFlag(flags, "max-price", usage);
+  const maxSizeRaw = requireFlag(flags, "max-size", usage);
+
+  if (outcome !== "yes" && outcome !== "no") {
+    fail("--outcome must be 'yes' or 'no'", { received: outcome });
+  }
+
+  if (side !== "buy" && side !== "sell") {
+    fail("--side must be 'buy' or 'sell'", { received: side });
+  }
+
+  const maxPriceCents = parseInt(maxPriceRaw, 10);
+  if (isNaN(maxPriceCents) || maxPriceCents < 1 || maxPriceCents > 99) {
+    fail("--max-price must be between 1 and 99 (cents)", { received: maxPriceRaw });
+  }
+
+  const maxSize = parseFloat(maxSizeRaw);
+  if (isNaN(maxSize) || maxSize < 1) {
+    fail("--max-size must be >= 1", { received: maxSizeRaw });
+  }
+
+  const ctx = tradingClient(flags as ClientFlags);
+  const result = await ctx.orders.createMarket({
+    marketId,
+    outcome: outcome as "yes" | "no",
+    side: side as "buy" | "sell",
+    maxPriceCents,
+    maxSize,
+    expirySeconds: flags["expiry-seconds"]
+      ? parseInt(flags["expiry-seconds"], 10)
+      : undefined,
+  });
   out(result);
 }
