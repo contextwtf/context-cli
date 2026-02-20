@@ -2,7 +2,7 @@
 // Markets commands — read-only market data (list, get, quotes, orderbook, …)
 // ---------------------------------------------------------------------------
 
-import { readClient, type ClientFlags } from "../client.js";
+import { readClient, tradingClient, type ClientFlags } from "../client.js";
 import {
   out,
   fail,
@@ -52,6 +52,8 @@ Subcommands:
     --limit <n>                       Max results
     --cursor <token>                  Pagination cursor
 
+  create <questionId>               Create a market from a generated question ID
+
   help                              Show this help text
 
 Global options:
@@ -85,6 +87,8 @@ export default async function handleMarkets(
       return activity(positional, flags);
     case "global-activity":
       return globalActivity(flags);
+    case "create":
+      return create(positional, flags);
     case "help":
     case undefined:
       console.log(HELP);
@@ -295,5 +299,20 @@ async function globalActivity(
     cursor: flags["cursor"] || undefined,
   });
 
+  out(result);
+}
+
+// ---------------------------------------------------------------------------
+// create — create a market from a generated question ID
+// ---------------------------------------------------------------------------
+
+async function create(
+  positional: string[],
+  flags: Record<string, string>,
+): Promise<void> {
+  const questionId = requirePositional(positional, 0, "questionId", "context-cli markets create <questionId>");
+  const ctx = tradingClient(flags as ClientFlags);
+
+  const result = await ctx.markets.create(questionId);
   out(result);
 }

@@ -1,0 +1,800 @@
+---
+name: context-api-reference
+description: Complete command reference for context-cli with all flags and response types.
+---
+
+# API Reference
+
+All commands output JSON to stdout. Errors output JSON to stderr with exit code 1.
+
+## markets
+
+### markets list
+
+```
+bun src/cli.ts markets list [flags]
+```
+
+| Flag | Required | Description |
+|---|---|---|
+| `--query <text>` | | Full-text search |
+| `--status <value>` | | `active`, `pending`, `resolved`, `closed` |
+| `--sort-by <field>` | | `new`, `volume`, `trending`, `ending`, `chance` |
+| `--sort <dir>` | | `asc`, `desc` |
+| `--limit <n>` | | Max results |
+| `--cursor <token>` | | Pagination cursor |
+| `--visibility <value>` | | `visible`, `hidden`, `all` |
+| `--resolution-status <value>` | | Resolution status filter |
+| `--creator <address>` | | Filter by creator |
+| `--category <slug>` | | Filter by category |
+
+Response: `MarketList`
+
+```json
+{
+  "markets": [{
+    "id": "string",
+    "question": "string",
+    "shortQuestion": "string",
+    "oracle": "string",
+    "outcomeTokens": ["string"],
+    "outcomePrices": [{
+      "outcomeIndex": 0,
+      "bestBid": 35,
+      "bestAsk": 38,
+      "spread": 3,
+      "midPrice": 36,
+      "lastPrice": 36,
+      "currentPrice": 36
+    }],
+    "creator": "string",
+    "creatorProfile": { "username": "string|null", "avatarUrl": "string|null" },
+    "volume": "string",
+    "volume24h": "string",
+    "participantCount": 42,
+    "resolutionStatus": "none|pending|resolved",
+    "status": "active|pending|resolved|closed",
+    "createdAt": "ISO8601",
+    "deadline": "ISO8601",
+    "resolutionCriteria": "string",
+    "resolvedAt": "ISO8601|null",
+    "payoutPcts": [0, 100],
+    "metadata": {
+      "slug": "string|null",
+      "criteria": "string",
+      "startTime": 0,
+      "endTime": 0,
+      "shortSummary": "string|null",
+      "categories": ["string"]
+    },
+    "outcome": "number|null",
+    "contractAddress": "string|null"
+  }],
+  "cursor": "string|null"
+}
+```
+
+### markets get
+
+```
+bun src/cli.ts markets get <id>
+```
+
+Response: single `Market` object (same shape as list items).
+
+### markets quotes
+
+```
+bun src/cli.ts markets quotes <id>
+```
+
+Response: `Quotes`
+
+```json
+{
+  "marketId": "string",
+  "yes": { "bid": 62, "ask": 65, "last": 63 },
+  "no": { "bid": 35, "ask": 38, "last": 37 },
+  "spread": 3,
+  "timestamp": "ISO8601"
+}
+```
+
+### markets orderbook
+
+```
+bun src/cli.ts markets orderbook <id> [--depth <n>]
+```
+
+Response: `FullOrderbook`
+
+```json
+{
+  "marketId": "string",
+  "yes": {
+    "bids": [{ "price": 62, "size": 100 }],
+    "asks": [{ "price": 65, "size": 80 }]
+  },
+  "no": {
+    "bids": [{ "price": 35, "size": 80 }],
+    "asks": [{ "price": 38, "size": 100 }]
+  },
+  "timestamp": "ISO8601"
+}
+```
+
+### markets simulate
+
+```
+bun src/cli.ts markets simulate <id> --side <yes|no> --amount <n> [--amount-type <usd|contracts>] [--trader <addr>]
+```
+
+Response: `SimulateResult`
+
+```json
+{
+  "marketId": "string",
+  "side": "string",
+  "amount": 100,
+  "amountType": "usd",
+  "estimatedContracts": 153.8,
+  "estimatedAvgPrice": 0.65,
+  "estimatedSlippage": 0.02
+}
+```
+
+### markets price-history
+
+```
+bun src/cli.ts markets price-history <id> [--timeframe <1h|6h|1d|1w|1M|all>]
+```
+
+Response: `PriceHistory`
+
+```json
+{
+  "prices": [{ "time": 1739836800, "price": 60 }],
+  "startTime": 1739836800,
+  "endTime": 1739923200,
+  "interval": 3600
+}
+```
+
+### markets oracle
+
+```
+bun src/cli.ts markets oracle <id>
+```
+
+Response: `OracleResponse`
+
+```json
+{
+  "oracle": {
+    "lastCheckedAt": "ISO8601|null",
+    "confidenceLevel": "string|null",
+    "evidenceCollected": { "postsCount": 0, "relevantPosts": [] },
+    "sourcesMonitored": ["string"],
+    "summary": {
+      "decision": "string",
+      "shortSummary": "string",
+      "expandedSummary": "string"
+    }
+  }
+}
+```
+
+### markets oracle-quotes
+
+```
+bun src/cli.ts markets oracle-quotes <id>
+```
+
+Response: `OracleQuotesResponse`
+
+```json
+{
+  "quotes": [{
+    "id": 1,
+    "status": "completed",
+    "probability": 0.65,
+    "confidence": "low|medium|high|null",
+    "reasoning": "string|null",
+    "referenceMarketsCount": 3,
+    "createdAt": "ISO8601",
+    "completedAt": "ISO8601|null"
+  }]
+}
+```
+
+### markets request-oracle-quote
+
+```
+bun src/cli.ts markets request-oracle-quote <id>
+```
+
+Response: `OracleQuoteRequestResult`
+
+```json
+{ "id": 1, "status": "pending", "createdAt": "ISO8601" }
+```
+
+### markets activity
+
+```
+bun src/cli.ts markets activity <id> [--limit <n>] [--cursor <token>]
+```
+
+Response: `ActivityResponse`
+
+```json
+{
+  "marketId": "string",
+  "activity": [{ "type": "string", "timestamp": "ISO8601", "data": {} }],
+  "pagination": { "cursor": "string|null", "hasMore": true }
+}
+```
+
+### markets create
+
+```
+bun src/cli.ts markets create <questionId>
+```
+
+Requires signer. Creates an on-chain market from a generated question ID (obtained via `questions submit-and-wait`).
+
+Response: `CreateMarketResult`
+
+```json
+{
+  "marketId": "string",
+  "txHash": "0xHex"
+}
+```
+
+### markets global-activity
+
+```
+bun src/cli.ts markets global-activity [--limit <n>] [--cursor <token>]
+```
+
+Response: same as `activity`, `marketId` is `null`.
+
+---
+
+## questions
+
+All questions commands require a signer.
+
+### questions submit
+
+```
+bun src/cli.ts questions submit <question>
+```
+
+Submits a question for AI-powered market generation.
+
+Response: `SubmitQuestionResult`
+
+```json
+{
+  "submissionId": "string",
+  "questions": [],
+  "status": "pending",
+  "statusUpdates": [],
+  "pollUrl": "string"
+}
+```
+
+### questions status
+
+```
+bun src/cli.ts questions status <submissionId>
+```
+
+Polls the status of a question submission.
+
+Response: `QuestionSubmission`
+
+```json
+{
+  "submissionId": "string",
+  "status": "pending|processing|completed|failed",
+  "questions": [{
+    "id": "0xHex",
+    "text": "string",
+    "shortText": "string",
+    "criteria": "string",
+    "explanation": "string",
+    "endTime": 1772728140
+  }],
+  "statusUpdates": [{
+    "tool": "string",
+    "status": "string",
+    "timestamp": "ISO8601"
+  }]
+}
+```
+
+### questions submit-and-wait
+
+```
+bun src/cli.ts questions submit-and-wait <question> [--poll-interval <ms>] [--max-attempts <n>]
+```
+
+Submits a question and polls until completion. Returns the final `QuestionSubmission` (same shape as `questions status` with `status: "completed"`).
+
+| Flag | Default | Description |
+|---|---|---|
+| `--poll-interval <ms>` | 2000 | Polling interval in milliseconds |
+| `--max-attempts <n>` | 45 | Max polling attempts before timeout |
+
+---
+
+## orders
+
+### orders list
+
+```
+bun src/cli.ts orders list [--trader <addr>] [--market <id>] [--status <value>] [--cursor <token>] [--limit <n>]
+```
+
+Uses read-only client if `--trader` given, trading client otherwise.
+
+Response: `OrderList`
+
+```json
+{
+  "orders": [{
+    "nonce": "0xHex",
+    "marketId": "string",
+    "trader": "0xAddress",
+    "outcomeIndex": 1,
+    "side": 0,
+    "price": "string",
+    "size": "string",
+    "type": "limit|market",
+    "status": "open|filled|cancelled|expired|voided",
+    "insertedAt": "ISO8601",
+    "filledSize": "string",
+    "remainingSize": "string",
+    "percentFilled": 0,
+    "voidedAt": "ISO8601|null",
+    "voidReason": "UNFILLED_MARKET_ORDER|UNDER_COLLATERALIZED|MISSING_OPERATOR_APPROVAL|null"
+  }],
+  "markets": { "marketId": { "shortQuestion": "string", "slug": "string" } },
+  "cursor": "string|null"
+}
+```
+
+### orders mine
+
+```
+bun src/cli.ts orders mine [--market <id>]
+```
+
+Requires signer. Response: same as `orders list`.
+
+### orders get
+
+```
+bun src/cli.ts orders get <id>
+```
+
+Response: single `Order` object.
+
+### orders recent
+
+```
+bun src/cli.ts orders recent [--trader <addr>] [--market <id>] [--status <value>] [--limit <n>] [--window-seconds <n>]
+```
+
+Requires signer. Response: same as `orders list`.
+
+### orders simulate
+
+```
+bun src/cli.ts orders simulate --market <id> --trader <addr> --size <n> --price <n> [--outcome <yes|no>] [--side <bid|ask>]
+```
+
+Response: `OrderSimulateResult`
+
+```json
+{
+  "levels": [{
+    "price": "string",
+    "sizeAvailable": "string",
+    "cumulativeSize": "string",
+    "takerFee": "string",
+    "cumulativeTakerFee": "string",
+    "collateralRequired": "string",
+    "cumulativeCollateral": "string",
+    "makerCount": 2
+  }],
+  "summary": {
+    "fillSize": "string",
+    "fillCost": "string",
+    "takerFee": "string",
+    "weightedAvgPrice": "string",
+    "totalLiquidityAvailable": "string",
+    "percentFillable": 100,
+    "slippageBps": 0
+  },
+  "collateral": {
+    "balance": "string",
+    "outcomeTokenBalance": "string",
+    "requiredForFill": "string",
+    "isSufficient": true
+  },
+  "warnings": ["string"]
+}
+```
+
+### orders create
+
+```
+bun src/cli.ts orders create --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n> [--expiry-seconds <n>] [--inventory-mode <any|hold|mint>] [--maker-role <any|taker>]
+```
+
+Requires signer. Response: `CreateOrderResult`
+
+```json
+{ "success": true, "order": { "...Order fields..." } }
+```
+
+### orders market
+
+```
+bun src/cli.ts orders market --market <id> --outcome <yes|no> --side <buy|sell> --max-price <1-99> --max-size <n> [--expiry-seconds <n>]
+```
+
+Requires signer. Response: `CreateOrderResult` (same as create).
+
+### orders cancel
+
+```
+bun src/cli.ts orders cancel <nonce>
+```
+
+Requires signer. Response: `CancelResult`
+
+```json
+{ "success": true, "alreadyCancelled": false }
+```
+
+### orders cancel-replace
+
+```
+bun src/cli.ts orders cancel-replace <nonce> --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>
+```
+
+Requires signer. Response: `CancelReplaceResult`
+
+```json
+{
+  "cancel": { "success": true, "trader": "string", "nonce": "string", "alreadyCancelled": false },
+  "create": { "success": true, "order": { "...Order fields..." } }
+}
+```
+
+### orders bulk-create
+
+```
+bun src/cli.ts orders bulk-create --orders '<JSON array of PlaceOrderRequest>'
+```
+
+PlaceOrderRequest: `{ marketId, outcome, side, priceCents, size, expirySeconds?, inventoryModeConstraint?, makerRoleConstraint? }`
+
+Requires signer. Response: array of `CreateOrderResult`.
+
+### orders bulk-cancel
+
+```
+bun src/cli.ts orders bulk-cancel --nonces <hex,hex,...>
+```
+
+Requires signer. Response: array of `CancelResult`.
+
+### orders bulk
+
+```
+bun src/cli.ts orders bulk [--creates '<JSON array>'] [--cancels <hex,hex,...>]
+```
+
+At least one of `--creates` or `--cancels` required. Requires signer. Response: `BulkResult`
+
+```json
+{
+  "results": [
+    { "type": "create", "success": true, "order": {} },
+    { "type": "cancel", "success": true, "trader": "string", "nonce": "string", "alreadyCancelled": false }
+  ]
+}
+```
+
+---
+
+## portfolio
+
+All portfolio commands use a read-only client if `--address` is given, trading client otherwise.
+
+### portfolio get
+
+```
+bun src/cli.ts portfolio get [--address <addr>] [--kind <all|active|won|lost|claimable>] [--market <id>] [--cursor <token>] [--page-size <n>]
+```
+
+Response: `Portfolio`
+
+```json
+{
+  "portfolio": [{
+    "tokenAddress": "string",
+    "balance": "string",
+    "settlementBalance": "string",
+    "walletBalance": "string",
+    "outcomeIndex": 1,
+    "outcomeName": "string",
+    "marketId": "string",
+    "netInvestment": "string",
+    "currentValue": "string",
+    "tokensRedeemed": "string"
+  }],
+  "marketIds": ["string"],
+  "cursor": "string|null"
+}
+```
+
+### portfolio claimable
+
+```
+bun src/cli.ts portfolio claimable [--address <addr>]
+```
+
+Response: `ClaimableResponse`
+
+```json
+{
+  "positions": [{
+    "tokenAddress": "string",
+    "balance": "string",
+    "settlementBalance": "string",
+    "walletBalance": "string",
+    "outcomeIndex": 1,
+    "outcomeName": "string|null",
+    "marketId": "string",
+    "netInvestment": "string",
+    "claimableAmount": "string"
+  }],
+  "markets": [{
+    "id": "string",
+    "outcomeTokens": ["string"],
+    "outcomeNames": ["string"],
+    "payoutPcts": ["string"]
+  }],
+  "totalClaimable": "string"
+}
+```
+
+### portfolio stats
+
+```
+bun src/cli.ts portfolio stats [--address <addr>]
+```
+
+Response: `PortfolioStats`
+
+```json
+{ "currentPortfolioValue": "string", "currentPortfolioPercentChange": 12.5 }
+```
+
+### portfolio balance
+
+```
+bun src/cli.ts portfolio balance [--address <addr>]
+```
+
+Response: `Balance`
+
+```json
+{
+  "address": "0xAddress",
+  "usdc": {
+    "tokenAddress": "string",
+    "balance": "string",
+    "settlementBalance": "string",
+    "walletBalance": "string"
+  },
+  "outcomeTokens": [{
+    "tokenAddress": "string",
+    "marketId": "string",
+    "outcomeIndex": 1,
+    "outcomeName": "string",
+    "balance": "string",
+    "settlementBalance": "string",
+    "walletBalance": "string"
+  }]
+}
+```
+
+### portfolio token-balance
+
+```
+bun src/cli.ts portfolio token-balance <address> <token-address>
+```
+
+Response: `TokenBalance`
+
+```json
+{ "balance": "string", "decimals": 6, "symbol": "USDC" }
+```
+
+---
+
+## account
+
+All account commands require a signer.
+
+### account status
+
+```
+bun src/cli.ts account status
+```
+
+Response: `WalletStatus`
+
+```json
+{
+  "address": "0xAddress",
+  "ethBalance": "bigint as string",
+  "usdcAllowance": "bigint as string",
+  "isOperatorApproved": true,
+  "needsApprovals": false
+}
+```
+
+### account setup
+
+```
+bun src/cli.ts account setup
+```
+
+Response: `WalletSetupResult`
+
+```json
+{ "usdcApprovalTx": "0xHex|null", "operatorApprovalTx": "0xHex|null" }
+```
+
+### account mint-test-usdc
+
+```
+bun src/cli.ts account mint-test-usdc [--amount <n>]
+```
+
+Default amount: 1000.
+
+### account deposit
+
+```
+bun src/cli.ts account deposit <amount>
+```
+
+Response:
+
+```json
+{ "status": "deposited", "amount_usdc": 500, "tx_hash": "0xHex" }
+```
+
+### account withdraw
+
+```
+bun src/cli.ts account withdraw <amount>
+```
+
+Response:
+
+```json
+{ "status": "withdrawn", "amount_usdc": 100, "tx_hash": "0xHex" }
+```
+
+### account mint-complete-sets
+
+```
+bun src/cli.ts account mint-complete-sets <market-id> <amount>
+```
+
+Response:
+
+```json
+{ "status": "minted", "market_id": "string", "amount": 10, "tx_hash": "0xHex" }
+```
+
+### account burn-complete-sets
+
+```
+bun src/cli.ts account burn-complete-sets <market-id> <amount> [--credit-internal <true|false>]
+```
+
+Response:
+
+```json
+{ "status": "burned", "market_id": "string", "amount": 10, "credit_internal": true, "tx_hash": "0xHex" }
+```
+
+---
+
+## Onboarding shortcuts
+
+```
+bun src/cli.ts setup                     # Generate wallet or check status
+bun src/cli.ts gasless-approve           # Approve contracts (no gas)
+bun src/cli.ts gasless-deposit <amount>  # Deposit USDC (no gas)
+bun src/cli.ts approve                   # Approve contracts (needs ETH)
+bun src/cli.ts deposit <amount>          # Deposit USDC (needs ETH)
+```
+
+### setup (no key)
+
+Response:
+
+```json
+{
+  "status": "new_wallet",
+  "address": "0xAddress",
+  "privateKey": "0xHex",
+  "nextSteps": ["string"]
+}
+```
+
+### setup (with key)
+
+Response:
+
+```json
+{
+  "status": "existing_wallet",
+  "address": "0xAddress",
+  "ethBalance": "bigint",
+  "isOperatorApproved": true,
+  "needsApprovals": false,
+  "nextSteps": ["string"]
+}
+```
+
+### gasless-approve
+
+Response: `GaslessOperatorResult`
+
+```json
+{ "success": true, "txHash": "0xHex", "user": "0xAddr", "operator": "0xAddr", "relayer": "0xAddr" }
+```
+
+### gasless-deposit
+
+Response: `GaslessDepositResult`
+
+```json
+{ "success": true, "txHash": "0xHex", "user": "0xAddr", "token": "0xAddr", "amount": "string", "relayer": "0xAddr" }
+```
+
+---
+
+## Error format
+
+```json
+{
+  "error": "Error message",
+  "details": { "usage": "string", "hint": "string" }
+}
+```
+
+Exit code: 1. Output: stderr.
+
+## Global flags
+
+| Flag | Env var | Description |
+|---|---|---|
+| `--api-key <key>` | `CONTEXT_API_KEY` | API key (required for all commands) |
+| `--private-key <key>` | `CONTEXT_PRIVATE_KEY` | Private key (required for trading) |
+| `--rpc-url <url>` | `CONTEXT_RPC_URL` | Base Sepolia RPC URL |
+| `--base-url <url>` | `CONTEXT_BASE_URL` | API base URL |

@@ -10,6 +10,7 @@ const HELP_TEXT = `Usage: context-cli <command> [subcommand] [options]
 
 Modules:
   markets                         Browse and search prediction markets
+  questions                       Submit questions for AI market generation
   orders                          Manage orders (create, cancel, list)
   portfolio                       View positions and balances
   account                         Wallet status, operator approval, deposits
@@ -35,6 +36,12 @@ async function main() {
     switch (parsed.command) {
       case "markets": {
         const mod = await import("./commands/markets.js");
+        await mod.default(parsed);
+        break;
+      }
+
+      case "questions": {
+        const mod = await import("./commands/questions.js");
         await mod.default(parsed);
         break;
       }

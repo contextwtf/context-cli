@@ -10,7 +10,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@contextwtf/sdk": "0.3.0",
+    "@contextwtf/sdk": "0.3.2",
     "viem": "^2.23.2"
   },
   "devDependencies": {
