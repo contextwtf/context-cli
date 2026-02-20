@@ -107,12 +107,12 @@ async function list(flags: Record<string, string>): Promise<void> {
 
   const result = await ctx.markets.list({
     query: flags["query"] || undefined,
-    status: flags["status"] || undefined,
-    sortBy: flags["sort-by"] || undefined,
-    sort: flags["sort"] || undefined,
+    status: (flags["status"] as "active" | "pending" | "resolved" | "closed") || undefined,
+    sortBy: (flags["sort-by"] as "new" | "volume" | "trending" | "ending" | "chance") || undefined,
+    sort: (flags["sort"] as "asc" | "desc") || undefined,
     limit: flags["limit"] ? parseInt(flags["limit"], 10) : undefined,
     cursor: flags["cursor"] || undefined,
-    visibility: flags["visibility"] || undefined,
+    visibility: (flags["visibility"] as "visible" | "hidden" | "all") || undefined,
     resolutionStatus: flags["resolution-status"] || undefined,
     creator: flags["creator"] || undefined,
     category: flags["category"] || undefined,
