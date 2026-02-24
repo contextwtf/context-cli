@@ -178,8 +178,13 @@ export async function runShell(): Promise<void> {
           );
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(chalk.red(`  Error: ${message}`));
+      // User cancelled a confirmation — just return to prompt
+      if (err instanceof Error && err.name === "CancelError") {
+        // Already printed "Cancelled." in the prompt function
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(chalk.red(`  Error: ${message}`));
+      }
     }
 
     console.log();

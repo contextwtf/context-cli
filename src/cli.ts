@@ -103,6 +103,10 @@ async function main() {
         fail(`Unknown command: "${parsed.command}". Run "context-cli help" for usage.`);
     }
   } catch (err: unknown) {
+    // User cancelled a confirmation prompt — exit silently
+    if (err instanceof Error && err.name === "CancelError") {
+      process.exit(0);
+    }
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes("Cannot find module")) {
       fail(`Command module not yet implemented: ${parsed.command}`);

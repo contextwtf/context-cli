@@ -6,6 +6,14 @@ import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { getOutputMode } from "../format.js";
 
+/** Thrown when user cancels a confirmation prompt */
+export class CancelError extends Error {
+  constructor() {
+    super("Cancelled.");
+    this.name = "CancelError";
+  }
+}
+
 interface OrderSummary {
   market?: string;
   side: string;
@@ -18,6 +26,7 @@ interface OrderSummary {
 /**
  * Show order summary and ask for confirmation.
  * Auto-skips if: JSON mode, --yes flag, or non-TTY.
+ * Throws CancelError if user declines (caught by shell or cli.ts).
  */
 export async function confirmOrder(
   summary: OrderSummary,
@@ -43,12 +52,13 @@ export async function confirmOrder(
 
   if (p.isCancel(confirmed) || !confirmed) {
     console.log(chalk.dim("  Cancelled."));
-    process.exit(0);
+    throw new CancelError();
   }
 }
 
 /**
  * Generic confirmation for destructive actions.
+ * Throws CancelError if user declines.
  */
 export async function confirmAction(
   message: string,
@@ -62,6 +72,6 @@ export async function confirmAction(
 
   if (p.isCancel(confirmed) || !confirmed) {
     console.log(chalk.dim("  Cancelled."));
-    process.exit(0);
+    throw new CancelError();
   }
 }

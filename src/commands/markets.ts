@@ -349,6 +349,7 @@ async function activity(
       { key: "type", label: "Type" },
       { key: "timestamp", label: "Time", format: formatDate },
     ],
+    numbered: true,
     emptyMessage: "No activity found.",
     cursor: act.pagination?.cursor || null,
   });
@@ -375,6 +376,7 @@ async function globalActivity(
       { key: "type", label: "Type" },
       { key: "timestamp", label: "Time", format: formatDate },
     ],
+    numbered: true,
     emptyMessage: "No activity found.",
     cursor: act.pagination?.cursor || null,
   });
