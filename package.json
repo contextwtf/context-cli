@@ -10,7 +10,10 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@contextwtf/sdk": "0.3.2",
+    "@clack/prompts": "^1.0.1",
+    "@contextwtf/sdk": "file:../context-sdk",
+    "chalk": "^5.6.2",
+    "cli-table3": "^0.6.5",
     "viem": "^2.23.2"
   },
   "devDependencies": {
