@@ -2,13 +2,16 @@
 // Questions commands — submit questions and poll for AI-generated markets
 // ---------------------------------------------------------------------------
 
+import * as p from "@clack/prompts";
 import { tradingClient, type ClientFlags } from "../client.js";
 import {
   out,
   fail,
   requirePositional,
+  getOutputMode,
   type ParsedArgs,
 } from "../format.js";
+import { formatDate } from "../ui/format.js";
 
 const HELP = `Usage: context-cli questions <subcommand> [options]
 
@@ -58,7 +61,13 @@ async function submit(
   const ctx = tradingClient(flags as ClientFlags);
 
   const result = await ctx.questions.submit(question);
-  out(result);
+  const r = result as any;
+  out(result, {
+    detail: [
+      ["Submission ID", String(r.id || r.submissionId || "—")],
+      ["Status", String(r.status || "—")],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +82,15 @@ async function status(
   const ctx = tradingClient(flags as ClientFlags);
 
   const result = await ctx.questions.getSubmission(submissionId);
-  out(result);
+  const r = result as any;
+  out(result, {
+    detail: [
+      ["Submission ID", String(r.id || r.submissionId || "—")],
+      ["Status", String(r.status || "—")],
+      ["Question", String(r.question || "—")],
+      ["Created", formatDate(r.createdAt)],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -87,9 +104,28 @@ async function submitAndWait(
   const question = requirePositional(positional, 0, "question", "context-cli questions submit-and-wait <question>");
   const ctx = tradingClient(flags as ClientFlags);
 
-  const result = await ctx.questions.submitAndWait(question, {
+  const opts = {
     pollIntervalMs: flags["poll-interval"] ? parseInt(flags["poll-interval"], 10) : undefined,
     maxAttempts: flags["max-attempts"] ? parseInt(flags["max-attempts"], 10) : undefined,
+  };
+
+  let result: any;
+
+  if (getOutputMode() === "table") {
+    const s = p.spinner();
+    s.start("Submitting question and waiting for AI generation...");
+    result = await ctx.questions.submitAndWait(question, opts);
+    s.stop("Question processed!");
+  } else {
+    result = await ctx.questions.submitAndWait(question, opts);
+  }
+
+  out(result, {
+    detail: [
+      ["Submission ID", String(result.id || result.submissionId || "—")],
+      ["Status", String(result.status || "—")],
+      ["Question", String(result.question || question)],
+      ["Created", formatDate(result.createdAt)],
+    ],
   });
-  out(result);
 }
