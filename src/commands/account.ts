@@ -4,6 +4,7 @@
 
 import { tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, requirePositional, type ParsedArgs } from "../format.js";
+import { formatMoney, formatAddress, truncate } from "../ui/format.js";
 
 const HELP = `Usage: context-cli account <subcommand> [options]
 
@@ -76,7 +77,16 @@ export default async function handleAccount(
 async function status(flags: Record<string, string>): Promise<void> {
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.account.status();
-  out(result);
+  const s = result as any;
+  out(result, {
+    detail: [
+      ["Address", formatAddress(s.address)],
+      ["ETH Balance", s.ethBalance || "\u2014"],
+      ["USDC Allowance", s.usdcAllowance ? "\u2713 Approved" : "\u2717 None"],
+      ["Operator", s.isOperatorApproved ? "\u2713 Approved" : "\u2717 Not approved"],
+      ["Needs Setup", s.needsApprovals ? "Yes \u2014 run `context setup`" : "No"],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +96,11 @@ async function status(flags: Record<string, string>): Promise<void> {
 async function setup(flags: Record<string, string>): Promise<void> {
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.account.setup();
-  out(result);
+  out(result, {
+    detail: [
+      ["Status", "\u2713 Contracts approved"],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -106,7 +120,14 @@ async function mintTestUsdc(flags: Record<string, string>): Promise<void> {
 
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.account.mintTestUsdc(amount);
-  out(result);
+  const r = result as any;
+  out(result, {
+    detail: [
+      ["Status", "\u2713 Minted"],
+      ["Amount", formatMoney(r.amount ?? amount)],
+      ["Tx Hash", formatAddress(r.txHash || r.tx_hash)],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -132,10 +153,12 @@ async function deposit(
   const ctx = tradingClient(flags as ClientFlags);
   const txHash = await ctx.account.deposit(amount);
 
-  out({
-    status: "deposited",
-    amount_usdc: amount,
-    tx_hash: txHash,
+  out({ status: "deposited", amount_usdc: amount, tx_hash: txHash }, {
+    detail: [
+      ["Status", "\u2713 Deposited"],
+      ["Amount", formatMoney(amount)],
+      ["Tx Hash", formatAddress(txHash)],
+    ],
   });
 }
 
@@ -162,10 +185,12 @@ async function withdraw(
   const ctx = tradingClient(flags as ClientFlags);
   const txHash = await ctx.account.withdraw(amount);
 
-  out({
-    status: "withdrawn",
-    amount_usdc: amount,
-    tx_hash: txHash,
+  out({ status: "withdrawn", amount_usdc: amount, tx_hash: txHash }, {
+    detail: [
+      ["Status", "\u2713 Withdrawn"],
+      ["Amount", formatMoney(amount)],
+      ["Tx Hash", formatAddress(txHash)],
+    ],
   });
 }
 
@@ -189,11 +214,13 @@ async function mintCompleteSets(
   const ctx = tradingClient(flags as ClientFlags);
   const txHash = await ctx.account.mintCompleteSets(marketId, amount);
 
-  out({
-    status: "minted",
-    market_id: marketId,
-    amount,
-    tx_hash: txHash,
+  out({ status: "minted", market_id: marketId, amount, tx_hash: txHash }, {
+    detail: [
+      ["Status", "\u2713 Minted complete sets"],
+      ["Market", truncate(marketId, 20)],
+      ["Amount", String(amount)],
+      ["Tx Hash", formatAddress(txHash)],
+    ],
   });
 }
 
@@ -225,11 +252,13 @@ async function burnCompleteSets(
     creditInternal,
   );
 
-  out({
-    status: "burned",
-    market_id: marketId,
-    amount,
-    credit_internal: creditInternal,
-    tx_hash: txHash,
+  out({ status: "burned", market_id: marketId, amount, credit_internal: creditInternal, tx_hash: txHash }, {
+    detail: [
+      ["Status", "\u2713 Burned complete sets"],
+      ["Market", truncate(marketId, 20)],
+      ["Amount", String(amount)],
+      ["Credit Internal", String(creditInternal)],
+      ["Tx Hash", formatAddress(txHash)],
+    ],
   });
 }
