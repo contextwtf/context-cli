@@ -10,6 +10,13 @@ import {
   requireFlag,
   type ParsedArgs,
 } from "../format.js";
+import {
+  formatCents,
+  formatMoney,
+  formatAddress,
+  formatDate,
+  truncate,
+} from "../ui/format.js";
 
 const HELP = `Usage: context-cli markets <subcommand> [options]
 
@@ -118,7 +125,19 @@ async function list(flags: Record<string, string>): Promise<void> {
     category: flags["category"] || undefined,
   });
 
-  out(result);
+  out(result, {
+    rows: (result as any).markets || [],
+    columns: [
+      { key: "shortQuestion", label: "Question", format: (v) => truncate(v as string, 34) },
+      { key: "outcomePrices[1].currentPrice", label: "Yes", format: formatCents },
+      { key: "outcomePrices[0].currentPrice", label: "No", format: formatCents },
+      { key: "volume", label: "Volume", format: formatMoney },
+      { key: "status", label: "Status", format: (v) => String(v ?? "\u2014") },
+    ],
+    numbered: true,
+    emptyMessage: "No markets found.",
+    cursor: (result as any).cursor || null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -133,7 +152,21 @@ async function get(
   const ctx = readClient(flags as ClientFlags);
 
   const market = await ctx.markets.get(id);
-  out(market);
+  const m = market as any;
+  out(market, {
+    detail: [
+      ["ID", String(m.id || "\u2014")],
+      ["Question", String(m.question || m.shortQuestion || "\u2014")],
+      ["Status", String(m.status || "\u2014")],
+      ["Yes", m.outcomePrices?.[1] ? `${formatCents(m.outcomePrices[1].bestBid)} bid / ${formatCents(m.outcomePrices[1].bestAsk)} ask` : "\u2014"],
+      ["No", m.outcomePrices?.[0] ? `${formatCents(m.outcomePrices[0].bestBid)} bid / ${formatCents(m.outcomePrices[0].bestAsk)} ask` : "\u2014"],
+      ["Volume", formatMoney(m.volume)],
+      ["24h Volume", formatMoney(m.volume24h)],
+      ["Participants", String(m.participantCount ?? "\u2014")],
+      ["Deadline", formatDate(m.deadline)],
+      ["Creator", formatAddress(m.creator || m.metadata?.creator)],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +181,15 @@ async function quotes(
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.quotes(id);
-  out(result);
+  const q = result as any;
+  out(result, {
+    detail: [
+      ["Market", String(q.marketId || "\u2014")],
+      ["Yes", `${formatCents(q.yes?.bid)} bid / ${formatCents(q.yes?.ask)} ask / ${formatCents(q.yes?.last)} last`],
+      ["No", `${formatCents(q.no?.bid)} bid / ${formatCents(q.no?.ask)} ask / ${formatCents(q.no?.last)} last`],
+      ["Spread", q.spread != null ? `${q.spread}\u00A2` : "\u2014"],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +207,16 @@ async function orderbook(
     depth: flags["depth"] ? parseInt(flags["depth"], 10) : undefined,
   });
 
-  out(result);
+  const ob = result as any;
+  out(result, {
+    detail: [
+      ["Market", String(ob.marketId || "\u2014")],
+      ["Yes Bids", (ob.yes?.bids || []).map((l: any) => `${formatCents(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
+      ["Yes Asks", (ob.yes?.asks || []).map((l: any) => `${formatCents(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
+      ["No Bids", (ob.no?.bids || []).map((l: any) => `${formatCents(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
+      ["No Asks", (ob.no?.asks || []).map((l: any) => `${formatCents(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -200,7 +250,17 @@ async function simulate(
     trader: flags["trader"] || undefined,
   });
 
-  out(result);
+  const sim = result as any;
+  out(result, {
+    detail: [
+      ["Market", String(sim.marketId || "\u2014")],
+      ["Side", String(sim.side || "\u2014")],
+      ["Amount", String(sim.amount ?? "\u2014")],
+      ["Est. Contracts", String(sim.estimatedContracts ?? "\u2014")],
+      ["Avg Price", formatCents(sim.estimatedAvgPrice ? sim.estimatedAvgPrice * 100 : null)],
+      ["Slippage", sim.estimatedSlippage != null ? `${(sim.estimatedSlippage * 100).toFixed(1)}%` : "\u2014"],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -282,7 +342,16 @@ async function activity(
     cursor: flags["cursor"] || undefined,
   });
 
-  out(result);
+  const act = result as any;
+  out(result, {
+    rows: act.activity || [],
+    columns: [
+      { key: "type", label: "Type" },
+      { key: "timestamp", label: "Time", format: formatDate },
+    ],
+    emptyMessage: "No activity found.",
+    cursor: act.pagination?.cursor || null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -299,7 +368,16 @@ async function globalActivity(
     cursor: flags["cursor"] || undefined,
   });
 
-  out(result);
+  const act = result as any;
+  out(result, {
+    rows: act.activity || [],
+    columns: [
+      { key: "type", label: "Type" },
+      { key: "timestamp", label: "Time", format: formatDate },
+    ],
+    emptyMessage: "No activity found.",
+    cursor: act.pagination?.cursor || null,
+  });
 }
 
 // ---------------------------------------------------------------------------
