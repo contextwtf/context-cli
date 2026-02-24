@@ -12,6 +12,7 @@ import {
   requirePositional,
   type ParsedArgs,
 } from "../format.js";
+import { formatCents, formatAddress, truncate, formatDate } from "../ui/format.js";
 
 const HELP = `Usage: context-cli orders <subcommand> [options]
 
@@ -122,6 +123,21 @@ export default async function handleOrders(
 }
 
 // ---------------------------------------------------------------------------
+// Shared column config for order list tables
+// ---------------------------------------------------------------------------
+
+const ORDER_LIST_COLUMNS = [
+  { key: "nonce", label: "Nonce", format: (v: unknown) => truncate(v as string, 14) },
+  { key: "marketId", label: "Market", format: (v: unknown) => truncate(v as string, 14) },
+  { key: "side", label: "Side", format: (v: unknown) => String(v ?? "\u2014").toUpperCase() },
+  { key: "outcomeIndex", label: "Outcome", format: (v: unknown) => (v === 1 || v === "1") ? "YES" : "NO" },
+  { key: "price", label: "Price", format: (v: unknown) => formatCents(v as number) },
+  { key: "size", label: "Size", format: (v: unknown) => String(v ?? "\u2014") },
+  { key: "status", label: "Status", format: (v: unknown) => String(v ?? "\u2014") },
+  { key: "percentFilled", label: "Filled", format: (v: unknown) => v != null ? `${v}%` : "\u2014" },
+];
+
+// ---------------------------------------------------------------------------
 // list — list orders (readClient if --trader given, tradingClient otherwise)
 // ---------------------------------------------------------------------------
 
@@ -138,7 +154,13 @@ async function list(flags: Record<string, string>): Promise<void> {
     limit: flags["limit"] ? parseInt(flags["limit"], 10) : undefined,
   });
 
-  out(result);
+  out(result, {
+    rows: result.orders || [],
+    columns: ORDER_LIST_COLUMNS,
+    numbered: true,
+    emptyMessage: "No orders found.",
+    cursor: result.cursor || null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +171,13 @@ async function mine(flags: Record<string, string>): Promise<void> {
   const ctx = tradingClient(flags as ClientFlags);
 
   const result = await ctx.orders.mine(flags["market"] || undefined);
-  out(result);
+  out(result, {
+    rows: result.orders || [],
+    columns: ORDER_LIST_COLUMNS,
+    numbered: true,
+    emptyMessage: "No orders found.",
+    cursor: result.cursor || null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +192,21 @@ async function get(
   const ctx = readClient(flags as ClientFlags);
 
   const order = await ctx.orders.get(id);
-  out(order);
+  const o = order as any;
+  out(order, {
+    detail: [
+      ["Nonce", String(o.nonce || "\u2014")],
+      ["Market", String(o.marketId || "\u2014")],
+      ["Status", String(o.status || "\u2014")],
+      ["Side", String(o.side ?? "\u2014").toUpperCase()],
+      ["Outcome", (o.outcomeIndex === 1 || o.outcomeIndex === "1") ? "YES" : "NO"],
+      ["Price", formatCents(o.price)],
+      ["Size", String(o.size || "\u2014")],
+      ["Filled", o.percentFilled != null ? `${o.percentFilled}%` : "\u2014"],
+      ["Trader", formatAddress(o.trader)],
+      ["Created", formatDate(o.insertedAt)],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -184,7 +226,13 @@ async function recent(flags: Record<string, string>): Promise<void> {
       : undefined,
   });
 
-  out(result);
+  out(result, {
+    rows: result.orders || [],
+    columns: ORDER_LIST_COLUMNS,
+    numbered: true,
+    emptyMessage: "No orders found.",
+    cursor: result.cursor || null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -293,7 +341,17 @@ async function create(flags: Record<string, string>): Promise<void> {
 
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.orders.create(order);
-  out(result);
+  const r = result as any;
+  out(result, {
+    detail: [
+      ["Status", r.success ? "\u2713 Order placed" : "\u2717 Failed"],
+      ["Nonce", String(r.order?.nonce || "\u2014")],
+      ["Market", String(r.order?.marketId || "\u2014")],
+      ["Type", String(r.order?.type || "\u2014")],
+      ["Order Status", String(r.order?.status || "\u2014")],
+      ["Filled", r.order?.percentFilled != null ? `${r.order.percentFilled}%` : "\u2014"],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -313,7 +371,13 @@ async function cancel(
 
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.orders.cancel(nonce);
-  out(result);
+  const r = result as any;
+  out(result, {
+    detail: [
+      ["Status", r.success ? "\u2713 Cancelled" : "\u2717 Failed"],
+      ["Already Cancelled", String(r.alreadyCancelled ?? "\u2014")],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -337,7 +401,14 @@ async function cancelReplace(
 
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.orders.cancelReplace(nonce, newOrder);
-  out(result);
+  const r = result as any;
+  out(result, {
+    detail: [
+      ["Cancel", r.cancel?.success ? "\u2713 Cancelled" : "\u2717 Failed"],
+      ["New Order", r.create?.success ? "\u2713 Created" : "\u2717 Failed"],
+      ["New Nonce", String(r.create?.order?.nonce || "\u2014")],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -466,5 +537,15 @@ async function marketOrder(flags: Record<string, string>): Promise<void> {
       ? parseInt(flags["expiry-seconds"], 10)
       : undefined,
   });
-  out(result);
+  const r = result as any;
+  out(result, {
+    detail: [
+      ["Status", r.success ? "\u2713 Order placed" : "\u2717 Failed"],
+      ["Nonce", String(r.order?.nonce || "\u2014")],
+      ["Market", String(r.order?.marketId || "\u2014")],
+      ["Type", String(r.order?.type || "\u2014")],
+      ["Order Status", String(r.order?.status || "\u2014")],
+      ["Filled", r.order?.percentFilled != null ? `${r.order.percentFilled}%` : "\u2014"],
+    ],
+  });
 }
