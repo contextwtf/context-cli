@@ -15,6 +15,9 @@ Modules:
   portfolio                       View positions and balances
   account                         Wallet status, operator approval, deposits
 
+Reference:
+  guides [topic]                  Browse usage guides (onboarding, trading, etc.)
+
 Onboarding:
   setup                           Check wallet status and fund if needed
   approve                         Approve the operator for gasless trading
@@ -76,6 +79,12 @@ async function main() {
           ? [parsed.subcommand, ...parsed.positional]
           : parsed.positional;
         await mod.default({ ...parsed, subcommand: parsed.command, positional });
+        break;
+      }
+
+      case "guides": {
+        const mod = await import("./commands/guides.js");
+        await mod.default(parsed);
         break;
       }
 
