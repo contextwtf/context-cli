@@ -6,34 +6,32 @@
 
 import { parseArgs, fail, setOutputMode } from "./format.js";
 
-const HELP_TEXT = `Usage: context-cli <command> [subcommand] [options]
+const HELP_TEXT = `Usage: context <command> [subcommand] [options]
 
-Modules:
+Commands:
   markets                         Browse and search prediction markets
-  questions                       Submit questions for AI market generation
   orders                          Manage orders (create, cancel, list)
   portfolio                       View positions and balances
-  account                         Wallet status, operator approval, deposits
-
-Reference:
-  guides [topic]                  Browse usage guides (onboarding, trading, etc.)
-
-Interactive:
-  shell                           Start an interactive REPL shell
+  account                         Wallet status, deposits, withdrawals
+  questions                       Submit questions for AI market generation
+  guides [topic]                  View usage guides
+  shell                           Interactive mode
 
 Onboarding:
-  setup                           Check wallet status and fund if needed
+  setup                           Guided wallet setup wizard
   approve                         Approve the operator for gasless trading
   deposit                         Deposit USDC into the exchange
   gasless-approve                 Gasless operator approval via relayer (no gas)
   gasless-deposit <amount>        Gasless USDC deposit via permit (no gas)
 
 Options:
+  -o, --output <table|json>       Output format (auto-detects TTY)
   --api-key <key>                 Context API key (or CONTEXT_API_KEY env)
-  --private-key <key>             Private key for signing (or CONTEXT_PRIVATE_KEY env)
+  --private-key <key>             Private key (or CONTEXT_PRIVATE_KEY env)
   --rpc-url <url>                 Base Sepolia RPC URL (or CONTEXT_RPC_URL env)
+  --yes                           Skip confirmations (for automation)
 
-Run "context-cli help" for this message, or "context-cli <module> help" for module-specific commands.`;
+Run "context help" for this message, or "context <command> help" for details.`;
 
 async function main() {
   const parsed = parseArgs(process.argv);
