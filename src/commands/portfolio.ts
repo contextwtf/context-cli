@@ -5,6 +5,7 @@
 import type { Address } from "viem";
 import { readClient, tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, requirePositional, type ParsedArgs } from "../format.js";
+import { formatMoney, truncate, formatAddress } from "../ui/format.js";
 
 const HELP = `Usage: context-cli portfolio <subcommand> [options]
 
@@ -101,7 +102,19 @@ async function getPortfolio(flags: Record<string, string>): Promise<void> {
       : undefined,
   });
 
-  out(result);
+  out(result, {
+    rows: result.portfolio || [],
+    columns: [
+      { key: "marketId", label: "Market", format: (v) => truncate(v as string, 14) },
+      { key: "outcomeName", label: "Outcome", format: (v) => String(v ?? "—") },
+      { key: "balance", label: "Shares", format: formatMoney },
+      { key: "netInvestment", label: "Invested", format: formatMoney },
+      { key: "currentValue", label: "Value", format: formatMoney },
+    ],
+    numbered: true,
+    emptyMessage: "No positions found.",
+    cursor: result.cursor || null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +126,13 @@ async function claimable(flags: Record<string, string>): Promise<void> {
   const address = addressFlag(flags);
 
   const result = await ctx.portfolio.claimable(address);
-  out(result);
+  const c = result as any;
+  out(result, {
+    detail: [
+      ["Total Claimable", formatMoney(c.totalClaimable)],
+      ["Positions", String((c.positions || []).length)],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -137,7 +156,15 @@ async function balance(flags: Record<string, string>): Promise<void> {
   const address = addressFlag(flags);
 
   const result = await ctx.portfolio.balance(address);
-  out(result);
+  const b = result as any;
+  out(result, {
+    detail: [
+      ["Address", String(b.address || "—")],
+      ["USDC Balance", formatMoney(b.usdc?.balance)],
+      ["Settlement", formatMoney(b.usdc?.settlementBalance)],
+      ["Wallet", formatMoney(b.usdc?.walletBalance)],
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -154,5 +181,12 @@ async function tokenBalance(
 
   const ctx = readClient(flags as ClientFlags);
   const result = await ctx.portfolio.tokenBalance(address, tokenAddress);
-  out(result);
+  const tb = result as any;
+  out(result, {
+    detail: [
+      ["Address", formatAddress(tb.address || tb.owner)],
+      ["Token", formatAddress(tb.token || tb.tokenAddress)],
+      ["Balance", String(tb.balance ?? "—")],
+    ],
+  });
 }

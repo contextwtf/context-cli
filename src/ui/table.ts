@@ -17,7 +17,7 @@ export interface Column {
   /** Optional fixed column width (characters) */
   width?: number;
   /** Optional formatter applied to the resolved cell value */
-  format?: (value: unknown) => string;
+  format?: (value: any) => string;
 }
 
 // ---------------------------------------------------------------------------
