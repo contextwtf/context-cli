@@ -13,6 +13,7 @@ import {
   type ParsedArgs,
 } from "../format.js";
 import { formatCents, formatAddress, truncate, formatDate } from "../ui/format.js";
+import { confirmOrder, confirmAction } from "../ui/prompt.js";
 
 const HELP = `Usage: context-cli orders <subcommand> [options]
 
@@ -339,6 +340,15 @@ async function create(flags: Record<string, string>): Promise<void> {
     "context-cli orders create --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>";
   const order = parsePlaceOrderFlags(flags, usage);
 
+  await confirmOrder({
+    market: order.marketId,
+    side: order.side,
+    outcome: order.outcome,
+    price: `${order.priceCents}¢`,
+    size: String(order.size),
+    estimatedCost: `$${((order.priceCents / 100) * order.size).toFixed(2)} USDC`,
+  }, flags);
+
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.orders.create(order);
   const r = result as any;
@@ -369,6 +379,8 @@ async function cancel(
     "context-cli orders cancel <nonce>",
   ) as Hex;
 
+  await confirmAction(`Cancel order ${nonce}?`, flags);
+
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.orders.cancel(nonce);
   const r = result as any;
@@ -398,6 +410,8 @@ async function cancelReplace(
   const usage =
     "context-cli orders cancel-replace <nonce> --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>";
   const newOrder = parsePlaceOrderFlags(flags, usage);
+
+  await confirmAction(`Cancel order ${nonce} and place replacement?`, flags);
 
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.orders.cancelReplace(nonce, newOrder);
@@ -525,6 +539,15 @@ async function marketOrder(flags: Record<string, string>): Promise<void> {
   if (isNaN(maxSize) || maxSize < 1) {
     fail("--max-size must be >= 1", { received: maxSizeRaw });
   }
+
+  await confirmOrder({
+    market: marketId,
+    side: side,
+    outcome: outcome,
+    price: `max ${maxPriceCents}¢`,
+    size: `max ${maxSize}`,
+    estimatedCost: `up to $${((maxPriceCents / 100) * maxSize).toFixed(2)} USDC`,
+  }, flags);
 
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.orders.createMarket({
