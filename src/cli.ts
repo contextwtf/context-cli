@@ -4,7 +4,7 @@
 // context-cli — CLI wrapper for @contextwtf/sdk
 // ---------------------------------------------------------------------------
 
-import { parseArgs, fail } from "./format.js";
+import { parseArgs, fail, setOutputMode } from "./format.js";
 
 const HELP_TEXT = `Usage: context-cli <command> [subcommand] [options]
 
@@ -31,6 +31,7 @@ Run "context-cli help" for this message, or "context-cli <module> help" for modu
 
 async function main() {
   const parsed = parseArgs(process.argv);
+  setOutputMode(parsed.flags);
 
   try {
     switch (parsed.command) {

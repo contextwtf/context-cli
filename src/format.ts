@@ -2,23 +2,40 @@
 // Shared output utilities for context-cli
 // ---------------------------------------------------------------------------
 
-/** BigInt-safe JSON replacer */
+import {
+  resolveOutputMode,
+  printOut,
+  printFail,
+  type OutputMode,
+  type TableConfig,
+} from "./ui/output.js";
+
+export type { TableConfig } from "./ui/output.js";
+
+/** BigInt-safe JSON replacer (kept for backward compat if anything imports it) */
 const replacer = (_key: string, value: unknown) =>
   typeof value === "bigint" ? value.toString() : value;
 
-/** Print JSON to stdout */
-export function out(data: unknown): void {
-  console.log(JSON.stringify(data, replacer, 2));
+let _mode: OutputMode = "json";
+
+/** Set the global output mode (called once in cli.ts) */
+export function setOutputMode(flags: Record<string, string>): void {
+  _mode = resolveOutputMode(flags);
 }
 
-/** Print JSON error to stderr and exit */
+/** Get the current output mode */
+export function getOutputMode(): OutputMode {
+  return _mode;
+}
+
+/** Print output (dual-mode: table or JSON based on global mode) */
+export function out(data: unknown, config?: TableConfig): void {
+  printOut(data, _mode, config);
+}
+
+/** Print error and exit (dual-mode) */
 export function fail(message: string, details?: unknown): never {
-  const payload: Record<string, unknown> = { error: message };
-  if (details !== undefined) {
-    payload.details = details;
-  }
-  console.error(JSON.stringify(payload, replacer, 2));
-  process.exit(1);
+  printFail(message, _mode, details);
 }
 
 // ---------------------------------------------------------------------------
@@ -58,6 +75,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
           i += 1;
         }
       }
+    } else if (arg === "-o" && i + 1 < args.length) {
+      flags["output"] = args[i + 1];
+      i += 2;
     } else {
       positional.push(arg);
       i += 1;
