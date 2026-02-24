@@ -2,6 +2,7 @@ import * as readline from "readline";
 import chalk from "chalk";
 import { parseArgs, setOutputMode } from "./format.js";
 import { onResults } from "./ui/output.js";
+import { setShellReadline } from "./ui/prompt.js";
 
 let lastResults: Record<string, unknown>[] = [];
 let lastCursor: string | null = null;
@@ -48,9 +49,31 @@ function splitArgs(input: string): string[] {
   return args;
 }
 
+const BANNER = [
+  "  ██████╗  ██████╗  ███╗   ██╗ ████████╗ ███████╗ ██╗  ██╗ ████████╗",
+  " ██╔════╝ ██╔═══██╗ ████╗  ██║ ╚══██╔══╝ ██╔════╝ ╚██╗██╔╝ ╚══██╔══╝",
+  " ██║      ██║   ██║ ██╔██╗ ██║    ██║    █████╗    ╚███╔╝     ██║   ",
+  " ██║      ██║   ██║ ██║╚██╗██║    ██║    ██╔══╝    ██╔██╗     ██║   ",
+  " ╚██████╗ ╚██████╔╝ ██║ ╚████║    ██║    ███████╗ ██╔╝ ██╗    ██║   ",
+  "  ╚═════╝  ╚═════╝  ╚═╝  ╚═══╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝    ╚═╝   ",
+];
+
+const GRADIENT = [
+  "#a78bfa", // violet-400
+  "#818cf8", // indigo-400
+  "#6366f1", // indigo-500
+  "#4f46e5", // indigo-600
+  "#4338ca", // indigo-700
+  "#3730a3", // indigo-800
+];
+
 export async function runShell(): Promise<void> {
   console.log();
-  console.log(chalk.bold("  Context Markets \u00b7 Interactive Shell"));
+  for (let i = 0; i < BANNER.length; i++) {
+    console.log(chalk.hex(GRADIENT[i])(BANNER[i]));
+  }
+  console.log();
+  console.log(chalk.bold("  Prediction Markets") + chalk.dim("  ·  Interactive Shell"));
   console.log(chalk.dim("  Type 'help' for commands, 'exit' to quit."));
   console.log();
 
@@ -69,6 +92,9 @@ export async function runShell(): Promise<void> {
     prompt: chalk.dim("context> "),
     terminal: true,
   });
+
+  // Share readline with prompt.ts so confirms don't create a second interface
+  setShellReadline(rl);
 
   rl.prompt();
 
@@ -178,9 +204,10 @@ export async function runShell(): Promise<void> {
           );
       }
     } catch (err: unknown) {
-      // User cancelled a confirmation — just return to prompt
-      if (err instanceof Error && err.name === "CancelError") {
-        // Already printed "Cancelled." in the prompt function
+      // CancelError: user cancelled a prompt — already printed
+      // FailError: validation error — already printed by fail()
+      if (err instanceof Error && (err.name === "CancelError" || err.name === "FailError")) {
+        // Already handled, just return to prompt
       } else {
         const message = err instanceof Error ? err.message : String(err);
         console.error(chalk.red(`  Error: ${message}`));

@@ -2,7 +2,7 @@
 // Questions commands — submit questions and poll for AI-generated markets
 // ---------------------------------------------------------------------------
 
-import * as p from "@clack/prompts";
+import chalk from "chalk";
 import { tradingClient, type ClientFlags } from "../client.js";
 import {
   out,
@@ -11,9 +11,8 @@ import {
   getOutputMode,
   type ParsedArgs,
 } from "../format.js";
-import { formatDate } from "../ui/format.js";
 
-const HELP = `Usage: context-cli questions <subcommand> [options]
+const HELP = `Usage: context questions <subcommand> [options]
 
 Subcommands:
   submit <question>                 Submit a question for AI market generation
@@ -45,7 +44,7 @@ export default async function handleQuestions(
       console.log(HELP);
       return;
     default:
-      fail(`Unknown questions subcommand: "${subcommand}". Run "context-cli questions help" for usage.`);
+      fail(`Unknown questions subcommand: "${subcommand}". Run "context questions help" for usage.`);
   }
 }
 
@@ -57,7 +56,7 @@ async function submit(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const question = requirePositional(positional, 0, "question", "context-cli questions submit <question>");
+  const question = requirePositional(positional, 0, "question", "context questions submit <question>");
   const ctx = tradingClient(flags as ClientFlags);
 
   const result = await ctx.questions.submit(question);
@@ -78,17 +77,23 @@ async function status(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const submissionId = requirePositional(positional, 0, "submissionId", "context-cli questions status <submissionId>");
+  const submissionId = requirePositional(positional, 0, "submissionId", "context questions status <submissionId>");
   const ctx = tradingClient(flags as ClientFlags);
 
   const result = await ctx.questions.getSubmission(submissionId);
   const r = result as any;
+  const questions = (r.questions || []) as { id: string; text?: string }[];
   out(result, {
     detail: [
-      ["Submission ID", String(r.id || r.submissionId || "—")],
+      ["Submission ID", String(r.submissionId || "—")],
       ["Status", String(r.status || "—")],
-      ["Question", String(r.question || "—")],
-      ["Created", formatDate(r.createdAt)],
+      ...questions.flatMap((q: { id: string; text?: string }, i: number) => [
+        [`Question ${i + 1}`, q.text || "—"] as [string, string],
+        [`  Market ID`, q.id] as [string, string],
+      ]),
+      ...(r.statusUpdates?.length
+        ? [["Latest Update", String((r.statusUpdates as any[]).at(-1)?.status || "—")] as [string, string]]
+        : []),
     ],
   });
 }
@@ -101,7 +106,7 @@ async function submitAndWait(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const question = requirePositional(positional, 0, "question", "context-cli questions submit-and-wait <question>");
+  const question = requirePositional(positional, 0, "question", "context questions submit-and-wait <question>");
   const ctx = tradingClient(flags as ClientFlags);
 
   const opts = {
@@ -112,20 +117,33 @@ async function submitAndWait(
   let result: any;
 
   if (getOutputMode() === "table") {
-    const s = p.spinner();
-    s.start("Submitting question and waiting for AI generation...");
-    result = await ctx.questions.submitAndWait(question, opts);
-    s.stop("Question processed!");
+    const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    let i = 0;
+    const timer = setInterval(() => {
+      process.stderr.write(`\r${chalk.cyan(frames[i++ % frames.length])} Submitting question and waiting for AI generation...`);
+    }, 80);
+    try {
+      result = await ctx.questions.submitAndWait(question, opts);
+      clearInterval(timer);
+      process.stderr.write(`\r${chalk.green("✓")} Question processed!                                      \n`);
+    } catch (err) {
+      clearInterval(timer);
+      process.stderr.write(`\r${chalk.red("✗")} Failed.                                                  \n`);
+      throw err;
+    }
   } else {
     result = await ctx.questions.submitAndWait(question, opts);
   }
 
+  const questions = (result.questions || []) as { id: string; text?: string }[];
   out(result, {
     detail: [
-      ["Submission ID", String(result.id || result.submissionId || "—")],
+      ["Submission ID", String(result.submissionId || "—")],
       ["Status", String(result.status || "—")],
-      ["Question", String(result.question || question)],
-      ["Created", formatDate(result.createdAt)],
+      ...questions.flatMap((q: { id: string; text?: string }, i: number) => [
+        [`Question ${i + 1}`, q.text || "—"] as [string, string],
+        [`  Market ID`, q.id] as [string, string],
+      ]),
     ],
   });
 }

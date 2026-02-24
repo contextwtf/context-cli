@@ -5,9 +5,9 @@
 import type { Address } from "viem";
 import { readClient, tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, requirePositional, type ParsedArgs } from "../format.js";
-import { formatMoney, truncate, formatAddress } from "../ui/format.js";
+import { formatMoney, formatVolume, truncate, formatAddress } from "../ui/format.js";
 
-const HELP = `Usage: context-cli portfolio <subcommand> [options]
+const HELP = `Usage: context portfolio <subcommand> [options]
 
 Subcommands:
   get                               Get portfolio positions
@@ -60,7 +60,7 @@ export default async function handlePortfolio(
       console.log(HELP);
       return;
     default:
-      fail(`Unknown portfolio subcommand: "${subcommand}". Run "context-cli portfolio help" for usage.`);
+      fail(`Unknown portfolio subcommand: "${subcommand}". Run "context portfolio help" for usage.`);
   }
 }
 
@@ -107,9 +107,9 @@ async function getPortfolio(flags: Record<string, string>): Promise<void> {
     columns: [
       { key: "marketId", label: "Market", format: (v) => truncate(v as string, 14) },
       { key: "outcomeName", label: "Outcome", format: (v) => String(v ?? "—") },
-      { key: "balance", label: "Shares", format: formatMoney },
-      { key: "netInvestment", label: "Invested", format: formatMoney },
-      { key: "currentValue", label: "Value", format: formatMoney },
+      { key: "balance", label: "Shares", format: formatVolume },
+      { key: "netInvestment", label: "Invested", format: formatVolume },
+      { key: "currentValue", label: "Value", format: formatVolume },
     ],
     numbered: true,
     emptyMessage: "No positions found.",
@@ -129,7 +129,7 @@ async function claimable(flags: Record<string, string>): Promise<void> {
   const c = result as any;
   out(result, {
     detail: [
-      ["Total Claimable", formatMoney(c.totalClaimable)],
+      ["Total Claimable", formatVolume(c.totalClaimable)],
       ["Positions", String((c.positions || []).length)],
     ],
   });
@@ -160,9 +160,9 @@ async function balance(flags: Record<string, string>): Promise<void> {
   out(result, {
     detail: [
       ["Address", String(b.address || "—")],
-      ["USDC Balance", formatMoney(b.usdc?.balance)],
-      ["Settlement", formatMoney(b.usdc?.settlementBalance)],
-      ["Wallet", formatMoney(b.usdc?.walletBalance)],
+      ["USDC Balance", formatVolume(b.usdc?.balance)],
+      ["Settlement", formatVolume(b.usdc?.settlementBalance)],
+      ["Wallet", formatVolume(b.usdc?.walletBalance)],
     ],
   });
 }
@@ -175,7 +175,7 @@ async function tokenBalance(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const usage = "context-cli portfolio token-balance <address> <token-address>";
+  const usage = "context portfolio token-balance <address> <token-address>";
   const address = requirePositional(positional, 0, "address", usage) as Address;
   const tokenAddress = requirePositional(positional, 1, "token-address", usage) as Address;
 

@@ -4,7 +4,7 @@
   "type": "module",
   "main": "src/cli.ts",
   "bin": {
-    "context-cli": "src/cli.ts"
+    "context": "src/cli.ts"
   },
   "scripts": {
     "test": "bun test"

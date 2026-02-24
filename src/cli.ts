@@ -37,6 +37,13 @@ async function main() {
   const parsed = parseArgs(process.argv);
   setOutputMode(parsed.flags);
 
+  // Default to shell mode when no command and running in a TTY
+  if (parsed.command === "help" && process.stdout.isTTY && process.stdin.isTTY) {
+    const { runShell } = await import("./shell.js");
+    await runShell();
+    return;
+  }
+
   try {
     switch (parsed.command) {
       case "markets": {
@@ -100,12 +107,16 @@ async function main() {
         break;
 
       default:
-        fail(`Unknown command: "${parsed.command}". Run "context-cli help" for usage.`);
+        fail(`Unknown command: "${parsed.command}". Run "context help" for usage.`);
     }
   } catch (err: unknown) {
-    // User cancelled a confirmation prompt — exit silently
+    // CancelError: user cancelled a prompt — exit silently
     if (err instanceof Error && err.name === "CancelError") {
       process.exit(0);
+    }
+    // FailError: already printed error message — just exit
+    if (err instanceof Error && err.name === "FailError") {
+      process.exit(1);
     }
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes("Cannot find module")) {

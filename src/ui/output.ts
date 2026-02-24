@@ -79,6 +79,14 @@ export function printOut(
   console.log(JSON.stringify(data, replacer, 2));
 }
 
+/** Thrown by fail() — caught by cli.ts (exits) and shell.ts (continues) */
+export class FailError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FailError";
+  }
+}
+
 export function printFail(
   message: string,
   mode: OutputMode,
@@ -101,5 +109,5 @@ export function printFail(
       );
     }
   }
-  process.exit(1);
+  throw new FailError(message);
 }

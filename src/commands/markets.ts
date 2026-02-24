@@ -12,13 +12,15 @@ import {
 } from "../format.js";
 import {
   formatCents,
+  formatPrice,
   formatMoney,
+  formatVolume,
   formatAddress,
   formatDate,
   truncate,
 } from "../ui/format.js";
 
-const HELP = `Usage: context-cli markets <subcommand> [options]
+const HELP = `Usage: context markets <subcommand> [options]
 
 Subcommands:
   list                              Search / browse markets
@@ -101,7 +103,7 @@ export default async function handleMarkets(
       console.log(HELP);
       return;
     default:
-      fail(`Unknown markets subcommand: "${subcommand}". Run "context-cli markets help" for usage.`);
+      fail(`Unknown markets subcommand: "${subcommand}". Run "context markets help" for usage.`);
   }
 }
 
@@ -129,9 +131,9 @@ async function list(flags: Record<string, string>): Promise<void> {
     rows: (result as any).markets || [],
     columns: [
       { key: "shortQuestion", label: "Question", format: (v) => truncate(v as string, 34) },
-      { key: "outcomePrices[1].currentPrice", label: "Yes", format: formatCents },
-      { key: "outcomePrices[0].currentPrice", label: "No", format: formatCents },
-      { key: "volume", label: "Volume", format: formatMoney },
+      { key: "outcomePrices[1].currentPrice", label: "Yes", format: formatPrice },
+      { key: "outcomePrices[0].currentPrice", label: "No", format: formatPrice },
+      { key: "volume", label: "Volume", format: formatVolume },
       { key: "status", label: "Status", format: (v) => String(v ?? "\u2014") },
     ],
     numbered: true,
@@ -148,7 +150,7 @@ async function get(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets get <id>");
+  const id = requirePositional(positional, 0, "id", "context markets get <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const market = await ctx.markets.get(id);
@@ -158,10 +160,10 @@ async function get(
       ["ID", String(m.id || "\u2014")],
       ["Question", String(m.question || m.shortQuestion || "\u2014")],
       ["Status", String(m.status || "\u2014")],
-      ["Yes", m.outcomePrices?.[1] ? `${formatCents(m.outcomePrices[1].bestBid)} bid / ${formatCents(m.outcomePrices[1].bestAsk)} ask` : "\u2014"],
-      ["No", m.outcomePrices?.[0] ? `${formatCents(m.outcomePrices[0].bestBid)} bid / ${formatCents(m.outcomePrices[0].bestAsk)} ask` : "\u2014"],
-      ["Volume", formatMoney(m.volume)],
-      ["24h Volume", formatMoney(m.volume24h)],
+      ["Yes", m.outcomePrices?.[1] ? `${formatPrice(m.outcomePrices[1].bestBid)} bid / ${formatPrice(m.outcomePrices[1].bestAsk)} ask` : "\u2014"],
+      ["No", m.outcomePrices?.[0] ? `${formatPrice(m.outcomePrices[0].bestBid)} bid / ${formatPrice(m.outcomePrices[0].bestAsk)} ask` : "\u2014"],
+      ["Volume", formatVolume(m.volume)],
+      ["24h Volume", formatVolume(m.volume24h)],
       ["Participants", String(m.participantCount ?? "\u2014")],
       ["Deadline", formatDate(m.deadline)],
       ["Creator", formatAddress(m.creator || m.metadata?.creator)],
@@ -177,7 +179,7 @@ async function quotes(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets quotes <id>");
+  const id = requirePositional(positional, 0, "id", "context markets quotes <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.quotes(id);
@@ -185,9 +187,9 @@ async function quotes(
   out(result, {
     detail: [
       ["Market", String(q.marketId || "\u2014")],
-      ["Yes", `${formatCents(q.yes?.bid)} bid / ${formatCents(q.yes?.ask)} ask / ${formatCents(q.yes?.last)} last`],
-      ["No", `${formatCents(q.no?.bid)} bid / ${formatCents(q.no?.ask)} ask / ${formatCents(q.no?.last)} last`],
-      ["Spread", q.spread != null ? `${q.spread}\u00A2` : "\u2014"],
+      ["Yes", `${formatPrice(q.yes?.bid)} bid / ${formatPrice(q.yes?.ask)} ask / ${formatPrice(q.yes?.last)} last`],
+      ["No", `${formatPrice(q.no?.bid)} bid / ${formatPrice(q.no?.ask)} ask / ${formatPrice(q.no?.last)} last`],
+      ["Spread", q.spread != null ? `${formatPrice(q.spread)}` : "\u2014"],
     ],
   });
 }
@@ -200,7 +202,7 @@ async function orderbook(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets orderbook <id>");
+  const id = requirePositional(positional, 0, "id", "context markets orderbook <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.fullOrderbook(id, {
@@ -211,10 +213,10 @@ async function orderbook(
   out(result, {
     detail: [
       ["Market", String(ob.marketId || "\u2014")],
-      ["Yes Bids", (ob.yes?.bids || []).map((l: any) => `${formatCents(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
-      ["Yes Asks", (ob.yes?.asks || []).map((l: any) => `${formatCents(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
-      ["No Bids", (ob.no?.bids || []).map((l: any) => `${formatCents(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
-      ["No Asks", (ob.no?.asks || []).map((l: any) => `${formatCents(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
+      ["Yes Bids", (ob.yes?.bids || []).map((l: any) => `${formatPrice(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
+      ["Yes Asks", (ob.yes?.asks || []).map((l: any) => `${formatPrice(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
+      ["No Bids", (ob.no?.bids || []).map((l: any) => `${formatPrice(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
+      ["No Asks", (ob.no?.asks || []).map((l: any) => `${formatPrice(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
     ],
   });
 }
@@ -227,9 +229,9 @@ async function simulate(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets simulate <id> --side <yes|no> --amount <n>");
-  const side = requireFlag(flags, "side", "context-cli markets simulate <id> --side <yes|no> --amount <n>");
-  const amountRaw = requireFlag(flags, "amount", "context-cli markets simulate <id> --side <yes|no> --amount <n>");
+  const id = requirePositional(positional, 0, "id", "context markets simulate <id> --side <yes|no> --amount <n>");
+  const side = requireFlag(flags, "side", "context markets simulate <id> --side <yes|no> --amount <n>");
+  const amountRaw = requireFlag(flags, "amount", "context markets simulate <id> --side <yes|no> --amount <n>");
 
   if (side !== "yes" && side !== "no") {
     fail("--side must be 'yes' or 'no'", { received: side });
@@ -257,7 +259,7 @@ async function simulate(
       ["Side", String(sim.side || "\u2014")],
       ["Amount", String(sim.amount ?? "\u2014")],
       ["Est. Contracts", String(sim.estimatedContracts ?? "\u2014")],
-      ["Avg Price", formatCents(sim.estimatedAvgPrice ? sim.estimatedAvgPrice * 100 : null)],
+      ["Avg Price", formatPrice(sim.estimatedAvgPrice)],
       ["Slippage", sim.estimatedSlippage != null ? `${(sim.estimatedSlippage * 100).toFixed(1)}%` : "\u2014"],
     ],
   });
@@ -271,7 +273,7 @@ async function priceHistory(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets price-history <id>");
+  const id = requirePositional(positional, 0, "id", "context markets price-history <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.priceHistory(id, {
@@ -289,7 +291,7 @@ async function oracle(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets oracle <id>");
+  const id = requirePositional(positional, 0, "id", "context markets oracle <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.oracle(id);
@@ -304,7 +306,7 @@ async function oracleQuotes(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets oracle-quotes <id>");
+  const id = requirePositional(positional, 0, "id", "context markets oracle-quotes <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.oracleQuotes(id);
@@ -319,7 +321,7 @@ async function requestOracleQuote(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets request-oracle-quote <id>");
+  const id = requirePositional(positional, 0, "id", "context markets request-oracle-quote <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.requestOracleQuote(id);
@@ -334,7 +336,7 @@ async function activity(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli markets activity <id>");
+  const id = requirePositional(positional, 0, "id", "context markets activity <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.activity(id, {
@@ -390,7 +392,7 @@ async function create(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const questionId = requirePositional(positional, 0, "questionId", "context-cli markets create <questionId>");
+  const questionId = requirePositional(positional, 0, "questionId", "context markets create <questionId>");
   const ctx = tradingClient(flags as ClientFlags);
 
   const result = await ctx.markets.create(questionId);

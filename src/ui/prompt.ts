@@ -2,7 +2,7 @@
 // Trading confirmation prompts — skipped in JSON mode, --yes, or non-TTY
 // ---------------------------------------------------------------------------
 
-import * as p from "@clack/prompts";
+import * as readline from "readline";
 import chalk from "chalk";
 import { getOutputMode } from "../format.js";
 
@@ -12,6 +12,48 @@ export class CancelError extends Error {
     super("Cancelled.");
     this.name = "CancelError";
   }
+}
+
+// ---------------------------------------------------------------------------
+// Shared readline — set by shell.ts so confirm reuses the same interface
+// ---------------------------------------------------------------------------
+
+let _shellRl: readline.Interface | null = null;
+
+export function setShellReadline(rl: readline.Interface | null): void {
+  _shellRl = rl;
+}
+
+/**
+ * Simple Y/n confirm. Reuses the shell readline if available,
+ * otherwise creates a temporary one (CLI mode).
+ */
+function confirm(message: string): Promise<boolean> {
+  const prompt = chalk.cyan(`  ? ${message} ${chalk.dim("(Y/n)")} `);
+
+  if (_shellRl) {
+    // Shell mode: use the existing readline (avoids stdin conflicts)
+    return new Promise((resolve) => {
+      _shellRl!.question(prompt, (answer) => {
+        const trimmed = answer.trim().toLowerCase();
+        resolve(trimmed === "" || trimmed === "y" || trimmed === "yes");
+      });
+    });
+  }
+
+  // CLI mode: create a temporary readline
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stderr,
+      terminal: true,
+    });
+    rl.question(prompt, (answer) => {
+      rl.close();
+      const trimmed = answer.trim().toLowerCase();
+      resolve(trimmed === "" || trimmed === "y" || trimmed === "yes");
+    });
+  });
 }
 
 interface OrderSummary {
@@ -46,11 +88,9 @@ export async function confirmOrder(
   if (summary.estimatedCost) console.log(`  Cost:    ~${summary.estimatedCost}`);
   console.log();
 
-  const confirmed = await p.confirm({
-    message: "Place this order?",
-  });
+  const confirmed = await confirm("Place this order?");
 
-  if (p.isCancel(confirmed) || !confirmed) {
+  if (!confirmed) {
     console.log(chalk.dim("  Cancelled."));
     throw new CancelError();
   }
@@ -68,9 +108,9 @@ export async function confirmAction(
     return;
   }
 
-  const confirmed = await p.confirm({ message });
+  const confirmed = await confirm(message);
 
-  if (p.isCancel(confirmed) || !confirmed) {
+  if (!confirmed) {
     console.log(chalk.dim("  Cancelled."));
     throw new CancelError();
   }

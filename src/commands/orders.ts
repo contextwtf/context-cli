@@ -12,10 +12,10 @@ import {
   requirePositional,
   type ParsedArgs,
 } from "../format.js";
-import { formatCents, formatAddress, truncate, formatDate } from "../ui/format.js";
+import { formatCents, formatPrice, formatAddress, truncate, formatDate } from "../ui/format.js";
 import { confirmOrder, confirmAction } from "../ui/prompt.js";
 
-const HELP = `Usage: context-cli orders <subcommand> [options]
+const HELP = `Usage: context orders <subcommand> [options]
 
 Subcommands:
   list                              List orders
@@ -119,7 +119,7 @@ export default async function handleOrders(
       console.log(HELP);
       return;
     default:
-      fail(`Unknown orders subcommand: "${subcommand}". Run "context-cli orders help" for usage.`);
+      fail(`Unknown orders subcommand: "${subcommand}". Run "context orders help" for usage.`);
   }
 }
 
@@ -132,7 +132,7 @@ const ORDER_LIST_COLUMNS = [
   { key: "marketId", label: "Market", format: (v: unknown) => truncate(v as string, 14) },
   { key: "side", label: "Side", format: (v: unknown) => String(v ?? "\u2014").toUpperCase() },
   { key: "outcomeIndex", label: "Outcome", format: (v: unknown) => (v === 1 || v === "1") ? "YES" : "NO" },
-  { key: "price", label: "Price", format: (v: unknown) => formatCents(v as number) },
+  { key: "price", label: "Price", format: (v: unknown) => formatPrice(v as number) },
   { key: "size", label: "Size", format: (v: unknown) => String(v ?? "\u2014") },
   { key: "status", label: "Status", format: (v: unknown) => String(v ?? "\u2014") },
   { key: "percentFilled", label: "Filled", format: (v: unknown) => v != null ? `${v}%` : "\u2014" },
@@ -189,7 +189,7 @@ async function get(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const id = requirePositional(positional, 0, "id", "context-cli orders get <id>");
+  const id = requirePositional(positional, 0, "id", "context orders get <id>");
   const ctx = readClient(flags as ClientFlags);
 
   const order = await ctx.orders.get(id);
@@ -201,7 +201,7 @@ async function get(
       ["Status", String(o.status || "\u2014")],
       ["Side", String(o.side ?? "\u2014").toUpperCase()],
       ["Outcome", (o.outcomeIndex === 1 || o.outcomeIndex === "1") ? "YES" : "NO"],
-      ["Price", formatCents(o.price)],
+      ["Price", formatPrice(o.price)],
       ["Size", String(o.size || "\u2014")],
       ["Filled", o.percentFilled != null ? `${o.percentFilled}%` : "\u2014"],
       ["Trader", formatAddress(o.trader)],
@@ -241,10 +241,10 @@ async function recent(flags: Record<string, string>): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function simulate(flags: Record<string, string>): Promise<void> {
-  const marketId = requireFlag(flags, "market", "context-cli orders simulate --market <id>");
-  const trader = requireFlag(flags, "trader", "context-cli orders simulate --market <id> --trader <address> --size <n> --price <n>");
-  const sizeRaw = requireFlag(flags, "size", "context-cli orders simulate --market <id> --trader <address> --size <n> --price <n>");
-  const priceRaw = requireFlag(flags, "price", "context-cli orders simulate --market <id> --trader <address> --size <n> --price <n>");
+  const marketId = requireFlag(flags, "market", "context orders simulate --market <id>");
+  const trader = requireFlag(flags, "trader", "context orders simulate --market <id> --trader <address> --size <n> --price <n>");
+  const sizeRaw = requireFlag(flags, "size", "context orders simulate --market <id> --trader <address> --size <n> --price <n>");
+  const priceRaw = requireFlag(flags, "price", "context orders simulate --market <id> --trader <address> --size <n> --price <n>");
 
   const outcome = flags["outcome"] ?? "yes";
   if (outcome !== "yes" && outcome !== "no") {
@@ -337,7 +337,7 @@ function parsePlaceOrderFlags(flags: Record<string, string>, usage: string) {
 
 async function create(flags: Record<string, string>): Promise<void> {
   const usage =
-    "context-cli orders create --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>";
+    "context orders create --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>";
   const order = parsePlaceOrderFlags(flags, usage);
 
   await confirmOrder({
@@ -376,7 +376,7 @@ async function cancel(
     positional,
     0,
     "nonce",
-    "context-cli orders cancel <nonce>",
+    "context orders cancel <nonce>",
   ) as Hex;
 
   await confirmAction(`Cancel order ${nonce}?`, flags);
@@ -404,11 +404,11 @@ async function cancelReplace(
     positional,
     0,
     "nonce",
-    "context-cli orders cancel-replace <nonce> --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>",
+    "context orders cancel-replace <nonce> --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>",
   ) as Hex;
 
   const usage =
-    "context-cli orders cancel-replace <nonce> --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>";
+    "context orders cancel-replace <nonce> --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>";
   const newOrder = parsePlaceOrderFlags(flags, usage);
 
   await confirmAction(`Cancel order ${nonce} and place replacement?`, flags);
@@ -433,7 +433,7 @@ async function bulkCreate(flags: Record<string, string>): Promise<void> {
   const raw = requireFlag(
     flags,
     "orders",
-    'context-cli orders bulk-create --orders \'[{"marketId":"...","outcome":"yes","side":"buy","priceCents":50,"size":10}]\'',
+    'context orders bulk-create --orders \'[{"marketId":"...","outcome":"yes","side":"buy","priceCents":50,"size":10}]\'',
   );
 
   let orders: unknown;
@@ -460,7 +460,7 @@ async function bulkCancel(flags: Record<string, string>): Promise<void> {
   const raw = requireFlag(
     flags,
     "nonces",
-    "context-cli orders bulk-cancel --nonces 0xabc,0xdef",
+    "context orders bulk-cancel --nonces 0xabc,0xdef",
   );
 
   const nonces = raw.split(",").map((s) => s.trim()) as Hex[];
@@ -484,7 +484,7 @@ async function bulk(flags: Record<string, string>): Promise<void> {
   if (!createsRaw && !cancelsRaw) {
     fail("At least one of --creates or --cancels is required", {
       usage:
-        'context-cli orders bulk --creates \'[...]\' --cancels 0xabc,0xdef',
+        'context orders bulk --creates \'[...]\' --cancels 0xabc,0xdef',
     });
   }
 
@@ -515,7 +515,7 @@ async function bulk(flags: Record<string, string>): Promise<void> {
 
 async function marketOrder(flags: Record<string, string>): Promise<void> {
   const usage =
-    "context-cli orders market --market <id> --outcome <yes|no> --side <buy|sell> --max-price <1-99> --max-size <n>";
+    "context orders market --market <id> --outcome <yes|no> --side <buy|sell> --max-price <1-99> --max-size <n>";
   const marketId = requireFlag(flags, "market", usage);
   const outcome = requireFlag(flags, "outcome", usage);
   const side = requireFlag(flags, "side", usage);

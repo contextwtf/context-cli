@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   formatCents,
+  formatPrice,
   formatMoney,
+  formatVolume,
   formatAddress,
   truncate,
   formatDate,
@@ -35,6 +37,44 @@ describe("formatCents", () => {
 
   test("returns dash for undefined", () => {
     expect(formatCents(undefined)).toBe("\u2014");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatPrice — API micro-units to cents
+// ---------------------------------------------------------------------------
+
+describe("formatPrice", () => {
+  test("converts micro-units to cents: 950000 → 95¢", () => {
+    expect(formatPrice(950000)).toBe("95\u00A2");
+  });
+
+  test("converts micro-units to cents: 50000 → 5¢", () => {
+    expect(formatPrice(50000)).toBe("5\u00A2");
+  });
+
+  test("converts micro-units: 500000 → 50¢", () => {
+    expect(formatPrice(500000)).toBe("50\u00A2");
+  });
+
+  test("handles fractional cents: 955000 → 95.5¢", () => {
+    expect(formatPrice(955000)).toBe("95.5\u00A2");
+  });
+
+  test("handles string input", () => {
+    expect(formatPrice("950000")).toBe("95\u00A2");
+  });
+
+  test("returns dash for zero", () => {
+    expect(formatPrice(0)).toBe("\u2014");
+  });
+
+  test("returns dash for null", () => {
+    expect(formatPrice(null)).toBe("\u2014");
+  });
+
+  test("returns dash for undefined", () => {
+    expect(formatPrice(undefined)).toBe("\u2014");
   });
 });
 
@@ -89,6 +129,44 @@ describe("formatMoney", () => {
 
   test("returns dash for undefined", () => {
     expect(formatMoney(undefined)).toBe("\u2014");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatVolume — API micro-USDC to dollars
+// ---------------------------------------------------------------------------
+
+describe("formatVolume", () => {
+  test("converts large micro-USDC to K: 14706679085 → $14.7K", () => {
+    expect(formatVolume(14706679085)).toBe("$14.7K");
+  });
+
+  test("converts micro-USDC to dollars: 5000000 → $5.00", () => {
+    expect(formatVolume(5000000)).toBe("$5.00");
+  });
+
+  test("converts millions micro-USDC: 1500000000000 → $1.5M", () => {
+    expect(formatVolume(1500000000000)).toBe("$1.5M");
+  });
+
+  test("handles small amounts: 500000 → $0.50", () => {
+    expect(formatVolume(500000)).toBe("$0.50");
+  });
+
+  test("handles zero", () => {
+    expect(formatVolume(0)).toBe("$0.00");
+  });
+
+  test("handles string input", () => {
+    expect(formatVolume("14706679085")).toBe("$14.7K");
+  });
+
+  test("returns dash for null", () => {
+    expect(formatVolume(null)).toBe("\u2014");
+  });
+
+  test("returns dash for undefined", () => {
+    expect(formatVolume(undefined)).toBe("\u2014");
   });
 });
 

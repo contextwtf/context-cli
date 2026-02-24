@@ -4,9 +4,9 @@
 
 import { tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, requirePositional, type ParsedArgs } from "../format.js";
-import { formatMoney, formatAddress, truncate } from "../ui/format.js";
+import { formatMoney, formatVolume, formatAddress, truncate } from "../ui/format.js";
 
-const HELP = `Usage: context-cli account <subcommand> [options]
+const HELP = `Usage: context account <subcommand> [options]
 
 Subcommands:
   status                            Check wallet status (balances, approvals)
@@ -53,11 +53,11 @@ export default async function handleAccount(
       return burnCompleteSets(positional, flags);
     case "relay-operator-approval":
       return fail(
-        "Use `context-cli gasless-approve` for gasless operator approval.",
+        "Use `context gasless-approve` for gasless operator approval.",
       );
     case "relay-deposit":
       return fail(
-        "Use `context-cli gasless-deposit <amount>` for gasless deposit.",
+        "Use `context gasless-deposit <amount>` for gasless deposit.",
       );
     case "help":
     case undefined:
@@ -65,7 +65,7 @@ export default async function handleAccount(
       return;
     default:
       fail(
-        `Unknown account subcommand: "${subcommand}". Run "context-cli account help" for usage.`,
+        `Unknown account subcommand: "${subcommand}". Run "context account help" for usage.`,
       );
   }
 }
@@ -142,7 +142,7 @@ async function deposit(
     positional,
     0,
     "amount",
-    "context-cli account deposit <amount>",
+    "context account deposit <amount>",
   );
 
   const amount = parseFloat(raw);
@@ -174,7 +174,7 @@ async function withdraw(
     positional,
     0,
     "amount",
-    "context-cli account withdraw <amount>",
+    "context account withdraw <amount>",
   );
 
   const amount = parseFloat(raw);
@@ -202,7 +202,7 @@ async function mintCompleteSets(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const usage = "context-cli account mint-complete-sets <market-id> <amount>";
+  const usage = "context account mint-complete-sets <market-id> <amount>";
   const marketId = requirePositional(positional, 0, "market-id", usage);
   const amountRaw = requirePositional(positional, 1, "amount", usage);
 
@@ -232,7 +232,7 @@ async function burnCompleteSets(
   positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
-  const usage = "context-cli account burn-complete-sets <market-id> <amount>";
+  const usage = "context account burn-complete-sets <market-id> <amount>";
   const marketId = requirePositional(positional, 0, "market-id", usage);
   const amountRaw = requirePositional(positional, 1, "amount", usage);
 

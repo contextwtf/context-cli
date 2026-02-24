@@ -49,8 +49,8 @@ async function setup(flags: Record<string, string>): Promise<void> {
           "Save the private key securely — it cannot be recovered.",
           "Export it: export CONTEXT_PRIVATE_KEY=<key>",
           "Fund the wallet with testnet ETH and USDC on Base Sepolia.",
-          "Run `context-cli approve` to approve contracts for trading.",
-          "Run `context-cli deposit <amount>` to deposit USDC into the exchange.",
+          "Run `context approve` to approve contracts for trading.",
+          "Run `context deposit <amount>` to deposit USDC into the exchange.",
         ],
       });
       return;
@@ -64,8 +64,8 @@ async function setup(flags: Record<string, string>): Promise<void> {
       ...walletStatus,
       nextSteps: walletStatus.needsApprovals
         ? [
-            "Run `context-cli approve` to approve contracts.",
-            "Run `context-cli deposit <amount>` to deposit.",
+            "Run `context approve` to approve contracts.",
+            "Run `context deposit <amount>` to deposit.",
           ]
         : ["Wallet is fully set up. You can start trading."],
     });
@@ -217,7 +217,7 @@ async function approve(flags: Record<string, string>): Promise<void> {
     operatorApprovalTx: result.operatorApprovalTx,
     wallet: walletStatus,
     nextSteps: [
-      "Run `context-cli deposit <amount>` to deposit USDC into the exchange.",
+      "Run `context deposit <amount>` to deposit USDC into the exchange.",
     ],
   });
 }
@@ -234,7 +234,7 @@ async function deposit(
     positional,
     0,
     "amount",
-    "context-cli deposit <amount>",
+    "context deposit <amount>",
   );
 
   const amount = parseFloat(raw);
@@ -274,7 +274,7 @@ async function gaslessDeposit(
     positional,
     0,
     "amount",
-    "context-cli gasless-deposit <amount>",
+    "context gasless-deposit <amount>",
   );
 
   const amount = parseFloat(raw);
