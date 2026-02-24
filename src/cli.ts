@@ -18,6 +18,9 @@ Modules:
 Reference:
   guides [topic]                  Browse usage guides (onboarding, trading, etc.)
 
+Interactive:
+  shell                           Start an interactive REPL shell
+
 Onboarding:
   setup                           Check wallet status and fund if needed
   approve                         Approve the operator for gasless trading
@@ -85,6 +88,12 @@ async function main() {
       case "guides": {
         const mod = await import("./commands/guides.js");
         await mod.default(parsed);
+        break;
+      }
+
+      case "shell": {
+        const { runShell } = await import("./shell.js");
+        await runShell();
         break;
       }
 
