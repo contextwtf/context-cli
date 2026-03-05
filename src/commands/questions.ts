@@ -49,6 +49,46 @@ export default async function handleQuestions(
 }
 
 // ---------------------------------------------------------------------------
+// Shared detail builder for submission responses
+// ---------------------------------------------------------------------------
+
+function submissionDetail(r: any): [string, string][] {
+  const questions = (r.questions || []) as { id: string; text?: string }[];
+  const similarMarkets = (r.similarMarkets || []) as {
+    id: string;
+    question: string;
+    shortQuestion: string;
+    similarity: number;
+  }[];
+  const rejections = (r.rejectionReasons || []) as {
+    code: string;
+    message: string;
+  }[];
+
+  return [
+    ["Submission ID", String(r.submissionId || "—")],
+    ["Status", String(r.status || "—")],
+    ...questions.flatMap((q, i) => [
+      [`Question ${i + 1}`, q.text || "—"] as [string, string],
+      [`  Market ID`, q.id] as [string, string],
+    ]),
+    ...(r.statusUpdates?.length
+      ? [["Latest Update", String((r.statusUpdates as any[]).at(-1)?.status || "—")] as [string, string]]
+      : []),
+    ...similarMarkets.flatMap((m, i) => [
+      [`Similar ${i + 1}`, `${m.shortQuestion || m.question} (${Math.round(m.similarity * 100)}% match)`] as [string, string],
+      [`  Market ID`, m.id] as [string, string],
+    ]),
+    ...rejections.map((r) => [`Rejected`, `[${r.code}] ${r.message}`] as [string, string]),
+    ...(r.qualityExplanation ? [["Quality", String(r.qualityExplanation)] as [string, string]] : []),
+    ...(r.refuseToResolve ? [["Warning", "Marked as unresolvable"] as [string, string]] : []),
+    ...(r.appliedChanges?.length
+      ? r.appliedChanges.map((c: string) => ["Change Applied", c] as [string, string])
+      : []),
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // submit — submit a question for AI generation
 // ---------------------------------------------------------------------------
 
@@ -82,20 +122,7 @@ async function status(
 
   const result = await ctx.questions.getSubmission(submissionId);
   const r = result as any;
-  const questions = (r.questions || []) as { id: string; text?: string }[];
-  out(result, {
-    detail: [
-      ["Submission ID", String(r.submissionId || "—")],
-      ["Status", String(r.status || "—")],
-      ...questions.flatMap((q: { id: string; text?: string }, i: number) => [
-        [`Question ${i + 1}`, q.text || "—"] as [string, string],
-        [`  Market ID`, q.id] as [string, string],
-      ]),
-      ...(r.statusUpdates?.length
-        ? [["Latest Update", String((r.statusUpdates as any[]).at(-1)?.status || "—")] as [string, string]]
-        : []),
-    ],
-  });
+  out(result, { detail: submissionDetail(r) });
 }
 
 // ---------------------------------------------------------------------------
@@ -135,15 +162,5 @@ async function submitAndWait(
     result = await ctx.questions.submitAndWait(question, opts);
   }
 
-  const questions = (result.questions || []) as { id: string; text?: string }[];
-  out(result, {
-    detail: [
-      ["Submission ID", String(result.submissionId || "—")],
-      ["Status", String(result.status || "—")],
-      ...questions.flatMap((q: { id: string; text?: string }, i: number) => [
-        [`Question ${i + 1}`, q.text || "—"] as [string, string],
-        [`  Market ID`, q.id] as [string, string],
-      ]),
-    ],
-  });
+  out(result, { detail: submissionDetail(result as any) });
 }

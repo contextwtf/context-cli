@@ -87,11 +87,15 @@ export class FailError extends Error {
   }
 }
 
+/**
+ * Print an error message to stderr (does NOT throw).
+ * Use `fail()` from format.ts when you also want to throw FailError.
+ */
 export function printFail(
   message: string,
   mode: OutputMode,
   details?: unknown,
-): never {
+): void {
   if (mode === "json") {
     const payload: Record<string, unknown> = { error: message };
     if (details !== undefined) payload.details = details;
@@ -109,5 +113,4 @@ export function printFail(
       );
     }
   }
-  throw new FailError(message);
 }

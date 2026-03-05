@@ -6,6 +6,7 @@ import {
   resolveOutputMode,
   printOut,
   printFail,
+  FailError,
   type OutputMode,
   type TableConfig,
 } from "./ui/output.js";
@@ -33,9 +34,10 @@ export function out(data: unknown, config?: TableConfig): void {
   printOut(data, _mode, config);
 }
 
-/** Print error and exit (dual-mode) */
+/** Print error and throw FailError (dual-mode) */
 export function fail(message: string, details?: unknown): never {
   printFail(message, _mode, details);
+  throw new FailError(message);
 }
 
 // ---------------------------------------------------------------------------

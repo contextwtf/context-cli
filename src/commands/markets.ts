@@ -396,5 +396,11 @@ async function create(
   const ctx = tradingClient(flags as ClientFlags);
 
   const result = await ctx.markets.create(questionId);
-  out(result);
+  const r = result as any;
+  out(result, {
+    detail: [
+      ["Market ID", String(r.marketId || "—")],
+      ["Tx Hash", String(r.txHash || "—")],
+    ],
+  });
 }

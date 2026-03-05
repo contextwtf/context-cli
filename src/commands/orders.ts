@@ -25,7 +25,7 @@ Subcommands:
     --cursor <token>                  Pagination cursor
     --limit <n>                       Max results
 
-  mine                              List your own open orders (requires signer)
+  mine                              List your own orders (requires signer)
     --market <id>                     Filter by market
 
   get <id>                          Get a single order by ID
@@ -165,7 +165,7 @@ async function list(flags: Record<string, string>): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// mine — list own open orders (requires signer)
+// mine — list own orders (requires signer)
 // ---------------------------------------------------------------------------
 
 async function mine(flags: Record<string, string>): Promise<void> {
