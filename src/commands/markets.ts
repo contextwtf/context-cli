@@ -135,8 +135,8 @@ async function list(flags: Record<string, string>): Promise<void> {
     rows: (result as any).markets || [],
     columns: [
       { key: "shortQuestion", label: "Question", format: (v) => truncate(v as string, 34) },
-      { key: "outcomePrices[1].currentPrice", label: "Yes", format: formatPrice },
-      { key: "outcomePrices[0].currentPrice", label: "No", format: formatPrice },
+      { key: "outcomePrices[1].buyPrice", label: "Yes", format: formatPrice },
+      { key: "outcomePrices[0].buyPrice", label: "No", format: formatPrice },
       { key: "volume", label: "Volume", format: formatVolume },
       { key: "status", label: "Status", format: (v) => String(v ?? "\u2014") },
     ],

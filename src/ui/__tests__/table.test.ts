@@ -117,13 +117,13 @@ describe("makeTable", () => {
 
   test("supports combined dot notation and array indexing", () => {
     const cols: Column[] = [
-      { key: "outcomePrices[1].currentPrice", label: "Price" },
+      { key: "outcomePrices[1].buyPrice", label: "Price" },
     ];
     const rows = [
       {
         outcomePrices: [
-          { currentPrice: 0.3 },
-          { currentPrice: 0.7 },
+          { buyPrice: 0.3 },
+          { buyPrice: 0.7 },
         ],
       },
     ];
