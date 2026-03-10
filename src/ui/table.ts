@@ -10,7 +10,7 @@ import Table from "cli-table3";
 
 export interface Column {
   /** Property key on row objects. Supports dot notation and array indexing,
-   *  e.g. "outcomePrices[1].currentPrice" */
+   *  e.g. "outcomePrices[1].buyPrice" */
   key: string;
   /** Header label displayed in the table */
   label: string;
@@ -53,7 +53,7 @@ const ROUNDED_CHARS: Record<string, string> = {
  *   getByPath(obj, "name")                       -> obj.name
  *   getByPath(obj, "user.name")                  -> obj.user.name
  *   getByPath(obj, "items[0]")                   -> obj.items[0]
- *   getByPath(obj, "outcomePrices[1].currentPrice")
+ *   getByPath(obj, "outcomePrices[1].buyPrice")
  */
 function getByPath(obj: unknown, path: string): unknown {
   // Split "foo[0].bar[1].baz" into tokens: ["foo", "0", "bar", "1", "baz"]
