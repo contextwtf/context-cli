@@ -23,8 +23,7 @@ import {
 const HELP = `Usage: context markets <subcommand> [options]
 
 Subcommands:
-  list                              Search / browse markets
-    --query <text>                    Full-text search
+  list                              Browse markets
     --status <status>                 Filter by status
     --limit <n>                       Max results
     --sort-by <field>                 Sort field
@@ -34,6 +33,10 @@ Subcommands:
     --creator <address>               Filter by creator
     --category <slug>                 Filter by category
     --cursor <token>                  Pagination cursor
+
+  search <query>                    Search markets by text
+    --limit <n>                       Max results (default: 10)
+    --offset <n>                      Offset for pagination
 
   get <id>                          Get a single market by ID
   quotes <id>                       Current quotes for a market
@@ -76,6 +79,8 @@ export default async function handleMarkets(
   switch (subcommand) {
     case "list":
       return list(flags);
+    case "search":
+      return search(positional, flags);
     case "get":
       return get(positional, flags);
     case "quotes":
@@ -108,14 +113,13 @@ export default async function handleMarkets(
 }
 
 // ---------------------------------------------------------------------------
-// list — search / browse markets
+// list — browse markets
 // ---------------------------------------------------------------------------
 
 async function list(flags: Record<string, string>): Promise<void> {
   const ctx = readClient(flags as ClientFlags);
 
   const result = await ctx.markets.list({
-    query: flags["query"] || undefined,
     status: (flags["status"] as "active" | "pending" | "resolved" | "closed") || undefined,
     sortBy: (flags["sort-by"] as "new" | "volume" | "trending" | "ending" | "chance") || undefined,
     sort: (flags["sort"] as "asc" | "desc") || undefined,
@@ -139,6 +143,37 @@ async function list(flags: Record<string, string>): Promise<void> {
     numbered: true,
     emptyMessage: "No markets found.",
     cursor: (result as any).cursor || null,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// search — search markets by text
+// ---------------------------------------------------------------------------
+
+async function search(
+  positional: string[],
+  flags: Record<string, string>,
+): Promise<void> {
+  const q = requirePositional(positional, 0, "query", "context markets search <query>");
+  const ctx = readClient(flags as ClientFlags);
+
+  const result = await ctx.markets.search({
+    q,
+    limit: flags["limit"] ? parseInt(flags["limit"], 10) : undefined,
+    offset: flags["offset"] ? parseInt(flags["offset"], 10) : undefined,
+  });
+
+  out(result, {
+    rows: result.markets || [],
+    columns: [
+      { key: "shortQuestion", label: "Question", format: (v) => truncate(v as string, 34) },
+      { key: "outcomePrices[1].currentPrice", label: "Yes", format: formatPrice },
+      { key: "outcomePrices[0].currentPrice", label: "No", format: formatPrice },
+      { key: "volume", label: "Volume", format: formatVolume },
+      { key: "status", label: "Status", format: (v) => String(v ?? "\u2014") },
+    ],
+    numbered: true,
+    emptyMessage: "No markets found.",
   });
 }
 
