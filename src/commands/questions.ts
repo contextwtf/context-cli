@@ -20,6 +20,20 @@ Subcommands:
   submit-and-wait <question>        Submit and poll until complete
     --poll-interval <ms>              Poll interval in ms (default: 2000)
     --max-attempts <n>                Max poll attempts (default: 45)
+  agent-submit                      Submit a fully-formed market draft directly
+    --formatted-question <text>       Full question text (required)
+    --short-question <text>           Short display title (required)
+    --market-type <type>              SUBJECTIVE or OBJECTIVE (required)
+    --evidence-mode <mode>            social_only or web_enabled (required)
+    --resolution-criteria <text>      How the market should resolve (required)
+    --end-time <datetime>             End time as "YYYY-MM-DD HH:MM:SS" (required)
+    --timezone <tz>                   IANA timezone (default: America/New_York)
+    --sources <urls>                  Comma-separated source URLs
+    --explanation <text>              Brief explanation (max 120 chars)
+  agent-submit-and-wait             Same as agent-submit but polls until complete
+    (same flags as agent-submit, plus:)
+    --poll-interval <ms>              Poll interval in ms (default: 2000)
+    --max-attempts <n>                Max poll attempts (default: 45)
 
   help                              Show this help text
 
@@ -39,6 +53,10 @@ export default async function handleQuestions(
       return status(positional, flags);
     case "submit-and-wait":
       return submitAndWait(positional, flags);
+    case "agent-submit":
+      return agentSubmit(positional, flags);
+    case "agent-submit-and-wait":
+      return agentSubmitAndWait(positional, flags);
     case "help":
     case undefined:
       console.log(HELP);
@@ -163,4 +181,93 @@ async function submitAndWait(
   }
 
   out(result, { detail: submissionDetail(result as any) });
+}
+
+// ---------------------------------------------------------------------------
+// agent-submit helpers
+// ---------------------------------------------------------------------------
+
+function parseAgentSubmitFlags(flags: Record<string, string>) {
+  const formattedQuestion = flags["formatted-question"];
+  const shortQuestion = flags["short-question"];
+  const marketType = flags["market-type"] as "SUBJECTIVE" | "OBJECTIVE";
+  const evidenceMode = flags["evidence-mode"] as "social_only" | "web_enabled";
+  const resolutionCriteria = flags["resolution-criteria"];
+  const endTime = flags["end-time"];
+
+  if (!formattedQuestion || !shortQuestion || !marketType || !evidenceMode || !resolutionCriteria || !endTime) {
+    fail("Required flags: --formatted-question, --short-question, --market-type, --evidence-mode, --resolution-criteria, --end-time");
+  }
+
+  return {
+    market: {
+      formattedQuestion,
+      shortQuestion,
+      marketType,
+      evidenceMode,
+      resolutionCriteria,
+      endTime,
+      timezone: flags["timezone"] || "America/New_York",
+      sources: flags["sources"] ? flags["sources"].split(",").map(s => s.trim()) : undefined,
+      explanation: flags["explanation"],
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// agent-submit — submit a fully-formed market draft directly
+// ---------------------------------------------------------------------------
+
+async function agentSubmit(
+  positional: string[],
+  flags: Record<string, string>,
+): Promise<void> {
+  const draft = parseAgentSubmitFlags(flags);
+  const ctx = tradingClient(flags as ClientFlags);
+  const result = await ctx.questions.agentSubmit(draft);
+  out(result, {
+    detail: [
+      ["Submission ID", String((result as any).submissionId || "—")],
+    ],
+  });
+}
+
+// ---------------------------------------------------------------------------
+// agent-submit-and-wait — submit draft and poll until complete
+// ---------------------------------------------------------------------------
+
+async function agentSubmitAndWait(
+  positional: string[],
+  flags: Record<string, string>,
+): Promise<void> {
+  const draft = parseAgentSubmitFlags(flags);
+  const ctx = tradingClient(flags as ClientFlags);
+
+  const opts = {
+    pollIntervalMs: flags["poll-interval"] ? parseInt(flags["poll-interval"], 10) : undefined,
+    maxAttempts: flags["max-attempts"] ? parseInt(flags["max-attempts"], 10) : undefined,
+  };
+
+  let result: any;
+
+  if (getOutputMode() === "table") {
+    const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    let i = 0;
+    const timer = setInterval(() => {
+      process.stderr.write(`\r${chalk.cyan(frames[i++ % frames.length])} Submitting market draft and waiting for processing...`);
+    }, 80);
+    try {
+      result = await ctx.questions.agentSubmitAndWait(draft, opts);
+      clearInterval(timer);
+      process.stderr.write(`\r${chalk.green("✓")} Market draft processed!                                      \n`);
+    } catch (err) {
+      clearInterval(timer);
+      process.stderr.write(`\r${chalk.red("✗")} Failed.                                                  \n`);
+      throw err;
+    }
+  } else {
+    result = await ctx.questions.agentSubmitAndWait(draft, opts);
+  }
+
+  out(result, { detail: submissionDetail(result) });
 }
