@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { Address, Hex } from "viem";
-import type { OrderStatus } from "@contextwtf/sdk";
+import type { OrderStatus } from "context-markets";
 import { readClient, tradingClient, type ClientFlags } from "../client.js";
 import {
   out,

@@ -2,7 +2,7 @@
 // ContextClient factory — read-only and trading variants
 // ---------------------------------------------------------------------------
 
-import { ContextClient } from "@contextwtf/sdk";
+import { ContextClient } from "context-markets";
 import type { Hex } from "viem";
 import { fail } from "./format.js";
 
