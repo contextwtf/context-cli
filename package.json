@@ -1,12 +1,40 @@
 {
-  "name": "context-cli",
+  "name": "@contextwtf/cli",
   "version": "0.1.0",
   "type": "module",
-  "main": "src/cli.ts",
-  "bin": {
-    "context": "src/cli.ts"
+  "description": "CLI for trading on Context prediction markets",
+  "author": "Context",
+  "license": "MIT",
+  "homepage": "https://docs.context.markets/agents/cli",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/contextwtf/context-cli.git"
   },
+  "bugs": {
+    "url": "https://github.com/contextwtf/context-cli/issues"
+  },
+  "keywords": [
+    "prediction-markets",
+    "context",
+    "cli",
+    "trading",
+    "web3",
+    "blockchain"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "dist/cli.js",
+  "bin": {
+    "context": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "tsup src/cli.ts --format esm --dts --outDir dist",
     "test": "bun test"
   },
   "dependencies": {
@@ -17,6 +45,7 @@
     "viem": "^2.23.2"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "tsup": "^8.0.0"
   }
 }

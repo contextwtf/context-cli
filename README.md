@@ -1,23 +1,38 @@
-# context-cli
+<p align="center">
+  <img src="https://mainnet.contextcdn.com/d9830b941541ef49ab92e4afe7a1110ffb883bf9c4af42570dbcb09bf17233e8" alt="Context" width="100%" />
+</p>
 
-CLI for trading on [Context](https://context.markets) prediction markets (Base Sepolia testnet). All output is JSON. Designed for use by AI agents.
+<p align="center">
+  <strong>CLI for trading on <a href="https://context.markets">Context Markets</a> prediction markets.</strong>
+</p>
 
-## Setup
+<p align="center">
+  <a href="https://www.npmjs.com/package/@contextwtf/cli"><img src="https://img.shields.io/npm/v/@contextwtf/cli" alt="npm" /></a>
+  <a href="https://github.com/contextwtf/context-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
+  <a href="https://discord.gg/RVmzZsAyM4"><img src="https://img.shields.io/badge/Discord-Join-7289da" alt="Discord" /></a>
+</p>
+
+## Install
 
 ```bash
-bun install
+npx @contextwtf/cli <command>
 ```
+
+Or install globally:
+
+```bash
+npm install -g @contextwtf/cli
+context <command>
+```
+
+## Setup
 
 ```bash
 export CONTEXT_API_KEY="your-api-key"
 export CONTEXT_PRIVATE_KEY="0x..."   # required for trading/account commands
 ```
 
-Run commands:
-
-```bash
-bun src/cli.ts <command> [subcommand] [options]
-```
+Need an API key? Visit [context.markets](https://context.markets) or join our [Discord](https://discord.gg/RVmzZsAyM4).
 
 ## Quick Start
 
@@ -27,48 +42,48 @@ If this is a fresh wallet, read [`skills/onboarding.md`](skills/onboarding.md) f
 
 | Command | Description | Requires signer |
 |---|---|---|
-| `markets list` | Search/browse markets | No |
-| `markets get <id>` | Get a single market | No |
-| `markets quotes <id>` | Current best prices | No |
-| `markets orderbook <id>` | Full orderbook (YES + NO) | No |
-| `markets simulate <id>` | Simulate a trade | No |
-| `markets price-history <id>` | Historical prices | No |
-| `markets oracle <id>` | Oracle resolution info | No |
-| `markets oracle-quotes <id>` | Oracle probability estimates | No |
-| `markets request-oracle-quote <id>` | Request fresh oracle estimate | No |
-| `markets activity <id>` | Market activity feed | No |
-| `markets create <questionId>` | Create market from generated question | Yes |
-| `markets global-activity` | Global activity feed | No |
-| `questions submit <question>` | Submit question for AI market generation | Yes |
-| `questions status <submissionId>` | Check question submission status | Yes |
-| `questions submit-and-wait <question>` | Submit and poll until complete | Yes |
-| `orders list` | List orders | No (with `--trader`) |
-| `orders mine` | Your open orders | Yes |
-| `orders get <id>` | Get a single order | No |
-| `orders recent` | Recent orders | Yes |
-| `orders simulate` | Simulate an order | No |
-| `orders create` | Place a limit order | Yes |
-| `orders market` | Place a market order | Yes |
-| `orders cancel <nonce>` | Cancel an order | Yes |
-| `orders cancel-replace <nonce>` | Atomic cancel + new order | Yes |
-| `orders bulk-create` | Create multiple orders | Yes |
-| `orders bulk-cancel` | Cancel multiple orders | Yes |
-| `orders bulk` | Atomic create + cancel batch | Yes |
-| `portfolio get` | Positions | No (with `--address`) |
-| `portfolio claimable` | Claimable winnings | No (with `--address`) |
-| `portfolio stats` | Portfolio statistics | No (with `--address`) |
-| `portfolio balance` | USDC + token balances | No (with `--address`) |
-| `portfolio token-balance` | Any ERC-20 balance | No |
-| `account status` | Wallet status + approvals | Yes |
-| `account setup` | Approve contracts (needs gas) | Yes |
-| `account mint-test-usdc` | Mint testnet USDC | Yes |
-| `account deposit <amount>` | Deposit USDC to exchange | Yes |
-| `account withdraw <amount>` | Withdraw USDC from exchange | Yes |
-| `account mint-complete-sets` | Mint YES+NO token pairs | Yes |
-| `account burn-complete-sets` | Burn token pairs back to USDC | Yes |
-| `setup` | Generate wallet or check status | Yes |
-| `gasless-approve` | Approve contracts (no gas) | Yes |
-| `gasless-deposit <amount>` | Deposit USDC (no gas) | Yes |
+| `context markets list` | Search/browse markets | No |
+| `context markets get <id>` | Get a single market | No |
+| `context markets quotes <id>` | Current best prices | No |
+| `context markets orderbook <id>` | Full orderbook (YES + NO) | No |
+| `context markets simulate <id>` | Simulate a trade | No |
+| `context markets price-history <id>` | Historical prices | No |
+| `context markets oracle <id>` | Oracle resolution info | No |
+| `context markets oracle-quotes <id>` | Oracle probability estimates | No |
+| `context markets request-oracle-quote <id>` | Request fresh oracle estimate | No |
+| `context markets activity <id>` | Market activity feed | No |
+| `context markets create <questionId>` | Create market from generated question | Yes |
+| `context markets global-activity` | Global activity feed | No |
+| `context questions submit <question>` | Submit question for AI market generation | Yes |
+| `context questions status <submissionId>` | Check question submission status | Yes |
+| `context questions submit-and-wait <question>` | Submit and poll until complete | Yes |
+| `context orders list` | List orders | No (with `--trader`) |
+| `context orders mine` | Your open orders | Yes |
+| `context orders get <id>` | Get a single order | No |
+| `context orders recent` | Recent orders | Yes |
+| `context orders simulate` | Simulate an order | No |
+| `context orders create` | Place a limit order | Yes |
+| `context orders market` | Place a market order | Yes |
+| `context orders cancel <nonce>` | Cancel an order | Yes |
+| `context orders cancel-replace <nonce>` | Atomic cancel + new order | Yes |
+| `context orders bulk-create` | Create multiple orders | Yes |
+| `context orders bulk-cancel` | Cancel multiple orders | Yes |
+| `context orders bulk` | Atomic create + cancel batch | Yes |
+| `context portfolio get` | Positions | No (with `--address`) |
+| `context portfolio claimable` | Claimable winnings | No (with `--address`) |
+| `context portfolio stats` | Portfolio statistics | No (with `--address`) |
+| `context portfolio balance` | USDC + token balances | No (with `--address`) |
+| `context portfolio token-balance` | Any ERC-20 balance | No |
+| `context account status` | Wallet status + approvals | Yes |
+| `context account setup` | Approve contracts (needs gas) | Yes |
+| `context account mint-test-usdc` | Mint testnet USDC | Yes |
+| `context account deposit <amount>` | Deposit USDC to exchange | Yes |
+| `context account withdraw <amount>` | Withdraw USDC from exchange | Yes |
+| `context account mint-complete-sets` | Mint YES+NO token pairs | Yes |
+| `context account burn-complete-sets` | Burn token pairs back to USDC | Yes |
+| `context setup` | Generate wallet or check status | Yes |
+| `context gasless-approve` | Approve contracts (no gas) | Yes |
+| `context gasless-deposit <amount>` | Deposit USDC (no gas) | Yes |
 
 ## Skills
 
@@ -84,7 +99,7 @@ Detailed guides with example responses for each workflow:
 
 ## Key Concepts
 
-- **Prices** are in cents (1–99). A price of 65 means $0.65 per share.
+- **Prices** are in cents (1-99). A price of 65 means $0.65 per share.
 - **Outcomes** are `yes` or `no`. Each market is a binary question.
 - **Size** is number of shares (minimum 1).
 - **All output is JSON** to stdout. Errors are JSON to stderr with exit code 1.
@@ -105,6 +120,25 @@ These work on any command:
 ```json
 {
   "error": "Missing required flag: --market",
-  "details": { "usage": "context-cli orders create --market <id> ..." }
+  "details": { "usage": "context orders create --market <id> ..." }
 }
 ```
+
+## Documentation
+
+Full command reference and workflow guides at **[docs.context.markets](https://docs.context.markets/agents/cli)**.
+
+## Ecosystem
+
+| Package | Description |
+|---------|-------------|
+| **[@contextwtf/sdk](https://github.com/contextwtf/context-sdk)** | TypeScript SDK for trading |
+| **[@contextwtf/react](https://github.com/contextwtf/context-react)** | React hooks for market data and trading |
+| **[@contextwtf/mcp](https://github.com/contextwtf/context-mcp)** | MCP server for AI agents |
+| **[@contextwtf/cli](https://github.com/contextwtf/context-cli)** | CLI for trading from the terminal |
+| **[context-skills](https://github.com/contextwtf/context-skills)** | AI agent skill files |
+| **[context-plugin](https://github.com/contextwtf/context-plugin)** | Claude Code plugin |
+
+## License
+
+MIT — see [LICENSE](./LICENSE) for details.

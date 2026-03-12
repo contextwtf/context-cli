@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 // ---------------------------------------------------------------------------
 // context-cli — CLI wrapper for @contextwtf/sdk
