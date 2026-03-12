@@ -1,10 +1,9 @@
 <p align="center">
-  <img src="https://mainnet.contextcdn.com/d9830b941541ef49ab92e4afe7a1110ffb883bf9c4af42570dbcb09bf17233e8" alt="Context" width="100%" />
+  <img src="https://mainnet.contextcdn.com/ced823d63df9dff0390d9ad0a4e1ad3905dd199a6c50758c18a5c92a203adbd7" alt="Context" width="100%" />
 </p>
 
-<p align="center">
-  <strong>CLI for trading on <a href="https://context.markets">Context Markets</a> prediction markets.</strong>
-</p>
+<h1 align="center">Context CLI</h1>
+<p align="center">CLI for trading on <a href="https://context.markets">Context Markets</a> prediction markets.</p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@contextwtf/cli"><img src="https://img.shields.io/npm/v/@contextwtf/cli" alt="npm" /></a>
@@ -132,7 +131,7 @@ Full command reference and workflow guides at **[docs.context.markets](https://d
 
 | Package | Description |
 |---------|-------------|
-| **[@contextwtf/sdk](https://github.com/contextwtf/context-sdk)** | TypeScript SDK for trading |
+| **[context-markets](https://github.com/contextwtf/context-sdk)** | TypeScript SDK for trading |
 | **[@contextwtf/react](https://github.com/contextwtf/context-react)** | React hooks for market data and trading |
 | **[@contextwtf/mcp](https://github.com/contextwtf/context-mcp)** | MCP server for AI agents |
 | **[@contextwtf/cli](https://github.com/contextwtf/context-cli)** | CLI for trading from the terminal |
