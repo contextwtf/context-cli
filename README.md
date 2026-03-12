@@ -6,7 +6,7 @@
 <p align="center">CLI for trading on <a href="https://context.markets">Context Markets</a> prediction markets. All output is JSON. Designed for AI agents.</p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@contextwtf/cli"><img src="https://img.shields.io/npm/v/@contextwtf/cli" alt="npm" /></a>
+  <a href="https://www.npmjs.com/package/context-markets-cli"><img src="https://img.shields.io/npm/v/context-markets-cli" alt="npm" /></a>
   <a href="https://github.com/contextwtf/context-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" /></a>
   <a href="https://discord.gg/RVmzZsAyM4"><img src="https://img.shields.io/badge/Discord-Join-7289da" alt="Discord" /></a>
 </p>
@@ -14,13 +14,13 @@
 ## Install
 
 ```bash
-npx @contextwtf/cli <command>
+npx context-markets-cli <command>
 ```
 
 Or install globally:
 
 ```bash
-npm install -g @contextwtf/cli
+npm install -g context-markets-cli
 ```
 
 ## Setup
@@ -82,7 +82,7 @@ context portfolio get
 | **[context-markets](https://github.com/contextwtf/context-sdk)** | TypeScript SDK for trading |
 | **[@contextwtf/react](https://github.com/contextwtf/context-react)** | React hooks for market data and trading |
 | **[@contextwtf/mcp](https://github.com/contextwtf/context-mcp)** | MCP server for AI agents |
-| **[@contextwtf/cli](https://github.com/contextwtf/context-cli)** | CLI for trading from the terminal |
+| **[context-markets-cli](https://github.com/contextwtf/context-cli)** | CLI for trading from the terminal |
 | **[context-skills](https://github.com/contextwtf/context-skills)** | AI agent skill files |
 | **[context-plugin](https://github.com/contextwtf/context-plugin)** | Claude Code plugin |
 

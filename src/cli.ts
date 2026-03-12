@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // ---------------------------------------------------------------------------
-// context-cli — CLI wrapper for @contextwtf/sdk
+// context-cli — CLI wrapper for context-markets
 // ---------------------------------------------------------------------------
 
 import { parseArgs, fail, setOutputMode, getOutputMode } from "./format.js";
