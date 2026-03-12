@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { ContextClient } from "context-markets";
+import type { ChainOption } from "context-markets";
 import type { Hex } from "viem";
 import { fail } from "./format.js";
 
@@ -11,6 +12,17 @@ export interface ClientFlags {
   "private-key"?: string;
   "rpc-url"?: string;
   "base-url"?: string;
+  chain?: string;
+}
+
+/**
+ * Resolve the chain option from --chain flag or CONTEXT_CHAIN env var.
+ * Returns undefined if not set (SDK defaults to mainnet).
+ */
+function resolveChain(flags: ClientFlags): ChainOption | undefined {
+  const raw = flags.chain ?? process.env.CONTEXT_CHAIN;
+  if (!raw) return undefined;
+  return raw as ChainOption;
 }
 
 /**
@@ -22,7 +34,8 @@ export function readClient(flags: ClientFlags = {}): ContextClient {
   if (!apiKey) fail("Missing CONTEXT_API_KEY env var or --api-key flag");
   const rpcUrl = flags["rpc-url"] ?? process.env.CONTEXT_RPC_URL;
   const baseUrl = flags["base-url"] ?? process.env.CONTEXT_BASE_URL;
-  return new ContextClient({ apiKey, rpcUrl, baseUrl });
+  const chain = resolveChain(flags);
+  return new ContextClient({ apiKey, rpcUrl, baseUrl, chain });
 }
 
 /**
@@ -44,10 +57,12 @@ export function tradingClient(flags: ClientFlags = {}): ContextClient {
 
   const rpcUrl = flags["rpc-url"] ?? process.env.CONTEXT_RPC_URL;
   const baseUrl = flags["base-url"] ?? process.env.CONTEXT_BASE_URL;
+  const chain = resolveChain(flags);
   return new ContextClient({
     apiKey,
     rpcUrl,
     baseUrl,
+    chain,
     signer: { privateKey: privateKey as Hex },
   });
 }

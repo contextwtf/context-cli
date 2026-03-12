@@ -30,6 +30,7 @@ Options:
   --api-key <key>                 Context API key (or CONTEXT_API_KEY env)
   --private-key <key>             Private key (or CONTEXT_PRIVATE_KEY env)
   --rpc-url <url>                 Base Sepolia RPC URL (or CONTEXT_RPC_URL env)
+  --chain <chain>                 Target chain (or CONTEXT_CHAIN env, default: mainnet)
   --yes                           Skip confirmations (for automation)
 
 Run "context help" for this message, or "context <command> help" for details.`;
