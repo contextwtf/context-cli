@@ -48,9 +48,30 @@ context orders create --market <id> --outcome yes --side buy --price 45 --size 1
 context portfolio get
 ```
 
+## Commands
+
+**Markets** — `markets list` · `markets get` · `markets quotes` · `markets orderbook` · `markets simulate` · `markets price-history` · `markets oracle` · `markets oracle-quotes` · `markets activity` · `markets create` · `markets global-activity`
+
+**Orders** — `orders list` · `orders mine` · `orders get` · `orders recent` · `orders simulate` · `orders create` · `orders market` · `orders cancel` · `orders cancel-replace` · `orders bulk-create` · `orders bulk-cancel` · `orders bulk`
+
+**Portfolio** — `portfolio get` · `portfolio claimable` · `portfolio stats` · `portfolio balance` · `portfolio token-balance`
+
+**Account** — `account status` · `account setup` · `account mint-test-usdc` · `account deposit` · `account withdraw`
+
+**Questions** — `questions submit` · `questions status` · `questions submit-and-wait`
+
+**Gasless** — `setup` · `gasless-approve` · `gasless-deposit`
+
+## Key Concepts
+
+- **Prices** are in cents (1–99). A price of 65 means $0.65 per share.
+- **Outcomes** are `yes` or `no`. Each market is a binary question.
+- **All output is JSON** to stdout. Errors are JSON to stderr with exit code 1.
+- **Read-only commands** only need `CONTEXT_API_KEY`. **Trading commands** also need `CONTEXT_PRIVATE_KEY`.
+
 ## Documentation
 
-- **[Command Reference](https://docs.context.markets/agents/cli/commands)** — full list of commands, flags, and response shapes
+- **[Command Reference](https://docs.context.markets/agents/cli/commands)** — full list of commands with flags and response shapes
 - **[CLI Guide](https://docs.context.markets/agents/cli)** — setup, authentication, and workflows
 - **[Agent Workflows](https://docs.context.markets/agents/cli/workflows)** — common patterns for AI agent integration
 
