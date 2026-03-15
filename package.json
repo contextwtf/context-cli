@@ -1,6 +1,6 @@
 {
   "name": "context-markets-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "CLI for trading on Context prediction markets",
   "author": "Context",
@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.0.1",
-    "context-markets": "^0.5.0",
+    "context-markets": "^0.5.1",
     "chalk": "^5.6.2",
     "cli-table3": "^0.6.5",
     "viem": "^2.23.2"
