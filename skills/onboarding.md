@@ -101,15 +101,17 @@ bun src/cli.ts account status
 {
   "address": "0xYourAddress",
   "ethBalance": "0",
+  "usdcBalance": "1000000000",
   "usdcAllowance": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
   "isOperatorApproved": true,
-  "needsApprovals": false
+  "needsUsdcApproval": false,
+  "needsOperatorApproval": false,
+  "isReady": true
 }
 ```
 
 You're ready to trade when:
-- `isOperatorApproved` is `true`
-- `needsApprovals` is `false`
+- `isReady` is `true`
 
 Confirm you have USDC deposited:
 

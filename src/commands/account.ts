@@ -84,7 +84,8 @@ async function status(flags: Record<string, string>): Promise<void> {
       ["ETH Balance", s.ethBalance || "\u2014"],
       ["USDC Allowance", s.usdcAllowance ? "\u2713 Approved" : "\u2717 None"],
       ["Operator", s.isOperatorApproved ? "\u2713 Approved" : "\u2717 Not approved"],
-      ["Needs Setup", s.needsApprovals ? "Yes \u2014 run `context setup`" : "No"],
+      ["USDC Balance", s.usdcBalance || "\u2014"],
+      ["Needs Setup", s.isReady ? "No" : "Yes \u2014 run `context setup`"],
     ],
   });
 }
@@ -151,13 +152,13 @@ async function deposit(
   }
 
   const ctx = tradingClient(flags as ClientFlags);
-  const txHash = await ctx.account.deposit(amount);
+  const result = await ctx.account.deposit(amount);
 
-  out({ status: "deposited", amount_usdc: amount, tx_hash: txHash }, {
+  out({ status: "deposited", amount_usdc: amount, tx_hash: result.txHash }, {
     detail: [
       ["Status", "\u2713 Deposited"],
       ["Amount", formatMoney(amount)],
-      ["Tx Hash", formatAddress(txHash)],
+      ["Tx Hash", formatAddress(result.txHash)],
     ],
   });
 }

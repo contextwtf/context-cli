@@ -62,7 +62,7 @@ async function setup(flags: Record<string, string>): Promise<void> {
     out({
       status: "existing_wallet",
       ...walletStatus,
-      nextSteps: walletStatus.needsApprovals
+      nextSteps: !walletStatus.isReady
         ? [
             "Run `context approve` to approve contracts.",
             "Run `context deposit <amount>` to deposit.",
@@ -87,7 +87,7 @@ async function setup(flags: Record<string, string>): Promise<void> {
     const ctx = tradingClient(flags as ClientFlags);
     const status = await ctx.account.status();
 
-    if (status.needsApprovals) {
+    if (!status.isReady) {
       const doApprove = await p.confirm({
         message: "Approve contracts for trading? (gasless)",
       });
@@ -213,8 +213,8 @@ async function approve(flags: Record<string, string>): Promise<void> {
 
   out({
     status: "approved",
-    usdcApprovalTx: result.usdcApprovalTx,
-    operatorApprovalTx: result.operatorApprovalTx,
+    usdcApprovalTx: result.usdcApproval.txHash,
+    operatorApprovalTx: result.operatorApproval.txHash,
     wallet: walletStatus,
     nextSteps: [
       "Run `context deposit <amount>` to deposit USDC into the exchange.",
@@ -243,12 +243,12 @@ async function deposit(
   }
 
   const ctx = tradingClient(flags as ClientFlags);
-  const txHash = await ctx.account.deposit(amount);
+  const result = await ctx.account.deposit(amount);
 
   out({
     status: "deposited",
     amount,
-    txHash,
+    txHash: result.txHash,
   });
 }
 

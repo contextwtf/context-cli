@@ -641,15 +641,18 @@ All account commands require a signer.
 bun src/cli.ts account status
 ```
 
-Response: `WalletStatus`
+Response: `AccountStatus`
 
 ```json
 {
   "address": "0xAddress",
   "ethBalance": "bigint as string",
+  "usdcBalance": "bigint as string",
   "usdcAllowance": "bigint as string",
   "isOperatorApproved": true,
-  "needsApprovals": false
+  "needsUsdcApproval": false,
+  "needsOperatorApproval": false,
+  "isReady": true
 }
 ```
 
@@ -659,10 +662,13 @@ Response: `WalletStatus`
 bun src/cli.ts account setup
 ```
 
-Response: `WalletSetupResult`
+Response: `SetupResult`
 
 ```json
-{ "usdcApprovalTx": "0xHex|null", "operatorApprovalTx": "0xHex|null" }
+{
+  "usdcApproval": { "needed": false, "txHash": null },
+  "operatorApproval": { "needed": false, "txHash": null }
+}
 ```
 
 ### account mint-test-usdc
@@ -756,7 +762,7 @@ Response:
   "address": "0xAddress",
   "ethBalance": "bigint",
   "isOperatorApproved": true,
-  "needsApprovals": false,
+  "isReady": true,
   "nextSteps": ["string"]
 }
 ```
