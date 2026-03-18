@@ -2,10 +2,12 @@
 // Markets commands — read-only market data (list, get, quotes, orderbook, …)
 // ---------------------------------------------------------------------------
 
+import chalk from "chalk";
 import { readClient, tradingClient, type ClientFlags } from "../client.js";
 import {
   out,
   fail,
+  getOutputMode,
   requirePositional,
   requireFlag,
   type ParsedArgs,
@@ -56,6 +58,8 @@ Subcommands:
   oracle-quotes <id>                Oracle quotes for a market
   request-oracle-quote <id>         Request a new oracle quote
 
+  link <id>                         Get link to market on context.markets
+
   activity <id>                     Activity feed for a market
     --limit <n>                       Max results
     --cursor <token>                  Pagination cursor
@@ -97,6 +101,8 @@ export default async function handleMarkets(
       return oracleQuotes(positional, flags);
     case "request-oracle-quote":
       return requestOracleQuote(positional, flags);
+    case "link":
+      return link(positional, flags);
     case "activity":
       return activity(positional, flags);
     case "global-activity":
@@ -207,6 +213,34 @@ async function get(
 }
 
 // ---------------------------------------------------------------------------
+// link — get link to market on context.markets
+// ---------------------------------------------------------------------------
+
+async function link(
+  positional: string[],
+  flags: Record<string, string>,
+): Promise<void> {
+  const id = requirePositional(positional, 0, "id", "context markets link <id>");
+  const ctx = readClient(flags as ClientFlags);
+  const market = await ctx.markets.get(id);
+  const m = market as any;
+
+  const slug = m.slug || m.id;
+  const url = `https://context.markets/markets/${slug}`;
+
+  if (getOutputMode() === "json") {
+    out({ url, marketId: m.id, question: m.question || m.shortQuestion });
+    return;
+  }
+
+  const question = m.question || m.shortQuestion || "—";
+  console.log();
+  console.log(`  ${chalk.bold(question)}`);
+  console.log(`  ${chalk.cyan(url)}`);
+  console.log();
+}
+
+// ---------------------------------------------------------------------------
 // quotes — current quotes for a market
 // ---------------------------------------------------------------------------
 
@@ -245,15 +279,80 @@ async function orderbook(
   });
 
   const ob = result as any;
-  out(result, {
-    detail: [
-      ["Market", String(ob.marketId || "\u2014")],
-      ["Yes Bids", (ob.yes?.bids || []).map((l: any) => `${formatPrice(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
-      ["Yes Asks", (ob.yes?.asks || []).map((l: any) => `${formatPrice(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
-      ["No Bids", (ob.no?.bids || []).map((l: any) => `${formatPrice(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
-      ["No Asks", (ob.no?.asks || []).map((l: any) => `${formatPrice(l.price)} \u00D7 ${l.size}`).join(", ") || "\u2014"],
-    ],
-  });
+
+  // JSON mode: raw data
+  if (getOutputMode() === "json") {
+    out(result);
+    return;
+  }
+
+  // Visual orderbook
+  const yesBids: { price: number; size: number }[] = ob.yes?.bids || [];
+  const yesAsks: { price: number; size: number }[] = ob.yes?.asks || [];
+  const noBids: { price: number; size: number }[] = ob.no?.bids || [];
+  const noAsks: { price: number; size: number }[] = ob.no?.asks || [];
+
+  function renderSide(
+    label: string,
+    bids: { price: number; size: number }[],
+    asks: { price: number; size: number }[],
+  ) {
+    // Find max size for bar scaling
+    const allSizes = [...bids, ...asks].map(l => l.size);
+    const maxSize = Math.max(...allSizes, 1);
+    const barWidth = 20;
+
+    console.log();
+    console.log(chalk.bold(`  ${label}`));
+    console.log(chalk.dim("  ─────────────────────────────────────────────────"));
+
+    // Asks (sorted high → low so lowest ask is near the spread)
+    const sortedAsks = [...asks].sort((a, b) => b.price - a.price);
+    if (sortedAsks.length === 0) {
+      console.log(chalk.dim("    No asks"));
+    } else {
+      console.log(chalk.dim("    Price      Size       "));
+      for (const level of sortedAsks) {
+        const bar = chalk.red("█".repeat(Math.max(1, Math.round((level.size / maxSize) * barWidth))));
+        const price = formatPrice(level.price).padStart(8);
+        const size = String(level.size).padStart(8);
+        console.log(`    ${chalk.red(price)}  ${size}  ${bar}`);
+      }
+    }
+
+    // Spread line
+    const bestBid = bids.length > 0 ? Math.max(...bids.map(b => b.price)) : null;
+    const bestAsk = asks.length > 0 ? Math.min(...asks.map(a => a.price)) : null;
+    if (bestBid != null && bestAsk != null) {
+      const spread = bestAsk - bestBid;
+      console.log(chalk.dim(`    ──── spread: ${formatPrice(spread)} ────`));
+    } else {
+      console.log(chalk.dim("    ────────────────────"));
+    }
+
+    // Bids (sorted high → low so highest bid is near the spread)
+    const sortedBids = [...bids].sort((a, b) => b.price - a.price);
+    if (sortedBids.length === 0) {
+      console.log(chalk.dim("    No bids"));
+    } else {
+      if (sortedAsks.length === 0) {
+        console.log(chalk.dim("    Price      Size       "));
+      }
+      for (const level of sortedBids) {
+        const bar = chalk.green("█".repeat(Math.max(1, Math.round((level.size / maxSize) * barWidth))));
+        const price = formatPrice(level.price).padStart(8);
+        const size = String(level.size).padStart(8);
+        console.log(`    ${chalk.green(price)}  ${size}  ${bar}`);
+      }
+    }
+  }
+
+  console.log();
+  console.log(chalk.bold(`  Orderbook`) + chalk.dim(` · ${ob.marketId || ""}`));
+
+  renderSide("YES", yesBids, yesAsks);
+  renderSide("NO", noBids, noAsks);
+  console.log();
 }
 
 // ---------------------------------------------------------------------------

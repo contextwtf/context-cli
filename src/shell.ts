@@ -7,6 +7,7 @@ import { setShellReadline } from "./ui/prompt.js";
 let lastResults: Record<string, unknown>[] = [];
 let lastCursor: string | null = null;
 let lastCommand: string | null = null;
+let cursorHistory: string[] = []; // stack of previous cursors for "back"
 
 /** Resolve #N to the ID from the last result set */
 function resolveRefs(input: string): string {
@@ -126,13 +127,14 @@ export async function runShell(): Promise<void> {
       console.log(chalk.bold("  Shell features:"));
       console.log("    #N                       Reference row N from last result");
       console.log("    next                     Load next page of last result");
+      console.log("    back                     Go back to previous page");
       console.log("    exit / quit              Leave the shell");
       console.log();
       rl.prompt();
       return;
     }
 
-    // Handle "next"
+    // Handle "next" and "back"
     let commandLine = trimmed;
     if (trimmed === "next") {
       if (!lastCommand || !lastCursor) {
@@ -140,7 +142,23 @@ export async function runShell(): Promise<void> {
         rl.prompt();
         return;
       }
+      // Push current cursor onto history before advancing
+      const currentCursor = commandLine.match(/--cursor\s+(\S+)/)?.[1];
+      if (currentCursor) cursorHistory.push(currentCursor);
+      else if (lastCursor) cursorHistory.push("__first__"); // mark first page
       commandLine = `${lastCommand} --cursor ${lastCursor}`;
+    } else if (trimmed === "back" || trimmed === "prev") {
+      if (!lastCommand || cursorHistory.length === 0) {
+        console.log(chalk.dim("  No previous page."));
+        rl.prompt();
+        return;
+      }
+      const prevCursor = cursorHistory.pop()!;
+      if (prevCursor === "__first__") {
+        commandLine = lastCommand;
+      } else {
+        commandLine = `${lastCommand} --cursor ${prevCursor}`;
+      }
     }
 
     // Resolve #N references
@@ -159,7 +177,12 @@ export async function runShell(): Promise<void> {
     }
 
     // Save command for "next" (strip existing cursor)
-    lastCommand = commandLine.replace(/\s+--cursor\s+\S+/g, "");
+    const baseCommand = commandLine.replace(/\s+--cursor\s+\S+/g, "");
+    if (baseCommand !== lastCommand) {
+      // New command — reset pagination history
+      cursorHistory = [];
+    }
+    lastCommand = baseCommand;
 
     // Parse: prepend dummy args to match parseArgs expectation
     const argv = ["bun", "cli.ts", ...splitArgs(commandLine)];

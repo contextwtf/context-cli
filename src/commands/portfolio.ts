@@ -3,13 +3,17 @@
 // ---------------------------------------------------------------------------
 
 import type { Address } from "viem";
+import chalk from "chalk";
 import { readClient, tradingClient, type ClientFlags } from "../client.js";
-import { out, fail, requirePositional, type ParsedArgs } from "../format.js";
+import { out, fail, getOutputMode, requirePositional, type ParsedArgs } from "../format.js";
 import { formatMoney, formatVolume, truncate, formatAddress } from "../ui/format.js";
 
 const HELP = `Usage: context portfolio <subcommand> [options]
 
 Subcommands:
+  overview                          Full portfolio snapshot (balance + stats + positions)
+    --address <addr>                  Query a specific address (read-only)
+
   get                               Get portfolio positions
     --address <addr>                  Query a specific address (read-only)
     --kind <all|active|won|lost|claimable>  Filter by position kind
@@ -45,6 +49,8 @@ export default async function handlePortfolio(
   const { subcommand, positional, flags } = parsed;
 
   switch (subcommand) {
+    case "overview":
+      return overview(flags);
     case "get":
       return getPortfolio(flags);
     case "claimable":
@@ -62,6 +68,77 @@ export default async function handlePortfolio(
     default:
       fail(`Unknown portfolio subcommand: "${subcommand}". Run "context portfolio help" for usage.`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// overview — full portfolio snapshot
+// ---------------------------------------------------------------------------
+
+async function overview(flags: Record<string, string>): Promise<void> {
+  const ctx = clientFor(flags);
+  const address = addressFlag(flags);
+
+  // Fetch balance, stats, and active positions in parallel
+  const [balanceResult, statsResult, positionsResult] = await Promise.all([
+    ctx.portfolio.balance(address),
+    ctx.portfolio.stats(address),
+    ctx.portfolio.get(address, { kind: "active" as any, pageSize: 10 }),
+  ]);
+
+  const b = balanceResult as any;
+  const st = statsResult as any;
+  const positions = (positionsResult as any).portfolio || [];
+
+  // JSON mode: return combined data
+  if (getOutputMode() === "json") {
+    out({ balance: balanceResult, stats: statsResult, activePositions: positions });
+    return;
+  }
+
+  // Table mode: formatted snapshot
+  console.log();
+  console.log(chalk.bold("  Portfolio Overview"));
+  console.log(chalk.dim("  ─────────────────────────────────────"));
+
+  // Balance section
+  console.log();
+  console.log(chalk.bold("  Balance"));
+  console.log(`    USDC Balance     ${formatVolume(b.usdc?.balance)}`);
+  console.log(`    Settlement       ${formatVolume(b.usdc?.settlementBalance)}`);
+  console.log(`    Wallet           ${formatVolume(b.usdc?.walletBalance)}`);
+
+  // Stats section
+  if (st) {
+    console.log();
+    console.log(chalk.bold("  Stats"));
+    const statKeys = Object.keys(st).filter(k => k !== "address");
+    for (const key of statKeys) {
+      const label = key.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).padEnd(18);
+      const val = typeof st[key] === "number" ? formatVolume(st[key]) : String(st[key] ?? "—");
+      console.log(`    ${label} ${val}`);
+    }
+  }
+
+  // Active positions
+  console.log();
+  if (positions.length === 0) {
+    console.log(chalk.dim("  No active positions."));
+  } else {
+    console.log(chalk.bold("  Active Positions"));
+    out(positionsResult, {
+      rows: positions,
+      columns: [
+        { key: "marketId", label: "Market", format: (v) => truncate(v as string, 14) },
+        { key: "outcomeName", label: "Outcome", format: (v) => String(v ?? "—") },
+        { key: "balance", label: "Shares", format: formatVolume },
+        { key: "netInvestment", label: "Invested", format: formatVolume },
+        { key: "currentValue", label: "Value", format: formatVolume },
+      ],
+      numbered: true,
+      emptyMessage: "No positions found.",
+    });
+  }
+  console.log();
 }
 
 // ---------------------------------------------------------------------------

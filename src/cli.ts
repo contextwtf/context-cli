@@ -22,10 +22,8 @@ Commands:
 
 Onboarding:
   setup                           Guided wallet setup wizard
-  approve                         Approve the operator for gasless trading
-  deposit                         Deposit USDC into the exchange
-  gasless-approve                 Gasless operator approval via relayer (no gas)
-  gasless-deposit <amount>        Gasless USDC deposit via permit (no gas)
+  approve                         Approve contracts for trading
+  deposit <amount>                Deposit USDC into the exchange
 
 Options:
   -o, --output <table|json>       Output format (auto-detects TTY)
@@ -173,26 +171,39 @@ async function main() {
         break;
       }
 
-      case "setup":
-      case "approve":
-      case "deposit":
       case "gasless-approve":
       case "gasless-deposit": {
+        // Redirect to account subcommands
+        const gaslessSubcmd = parsed.command;
+        parsed.command = "account";
+        parsed.subcommand = gaslessSubcmd;
+        const accountMod = await import("./commands/account.js");
+        await accountMod.default(parsed);
+        break;
+      }
+
+      case "setup":
+      case "approve":
+      case "deposit": {
         // "context setup help" → show setup help, not run the wizard
         if (parsed.subcommand === "help" || parsed.flags["help"] === "true") {
           console.log(`Usage: context ${parsed.command} [options]
 
-${parsed.command === "setup" ? "Guided wallet setup wizard. Generates or imports a wallet, approves contracts,\nmints test USDC, and deposits — all in one step." :
+${parsed.command === "setup" ? "Guided wallet setup wizard. Generates or imports a wallet, approves contracts,\nand deposits — all in one step." :
   parsed.command === "approve" ? "Approve the operator and USDC allowance for on-chain trading." :
-  parsed.command === "deposit" ? "Deposit USDC into the exchange.\n\nUsage: context deposit <amount>" :
-  parsed.command === "gasless-approve" ? "Gasless operator approval via relayer (no gas needed)." :
-  "Gasless USDC deposit via permit (no gas needed).\n\nUsage: context gasless-deposit <amount>"}
+  "Deposit USDC into the exchange.\n\nUsage: context deposit <amount>"}
 
 Options:
   --api-key <key>       Context API key
   --private-key <key>   Private key
   --chain <chain>       Target chain (default: mainnet)
-  --yes                 Skip confirmations`);
+  --yes                 Skip confirmations
+  --save                Save wallet to config file (for --output json)
+
+Agent workflow (non-interactive):
+  context setup --output json --save           Generate wallet, save to config
+  context approve --output json                Approve contracts
+  context deposit <amount> --output json       Deposit USDC`);
           break;
         }
         const mod = await import("./commands/setup.js");
