@@ -121,6 +121,7 @@ export async function runShell(): Promise<void> {
       console.log("    account <subcommand>     Wallet and account operations");
       console.log("    questions <subcommand>   Submit questions for AI markets");
       console.log("    guides [topic]           View usage guides");
+      console.log("    ecosystem                Show ecosystem repos and links");
       console.log();
       console.log(chalk.bold("  Shell features:"));
       console.log("    #N                       Reference row N from last result");
@@ -194,6 +195,35 @@ export async function runShell(): Promise<void> {
         case "guides": {
           const mod = await import("./commands/guides.js");
           await mod.default(parsed);
+          break;
+        }
+        case "ecosystem": {
+          // Re-use the same inline display from cli.ts
+          console.log(`
+${chalk.bold("Context Markets Ecosystem")}
+${chalk.dim("────────────────────────────")}
+
+  ${chalk.bold("SDK")}             TypeScript SDK for Context Markets
+                    ${chalk.cyan("https://github.com/contextwtf/context-sdk")}
+                    ${chalk.dim("npm: context-markets")}
+
+  ${chalk.bold("CLI")}             Command-line interface (this tool)
+                    ${chalk.cyan("https://github.com/contextwtf/context-cli")}
+                    ${chalk.dim("npm: context-markets-cli")}
+
+  ${chalk.bold("MCP Server")}      Model Context Protocol server for AI agents
+                    ${chalk.cyan("https://github.com/contextwtf/context-mcp")}
+                    ${chalk.dim("npm: context-markets-mcp")}
+
+  ${chalk.bold("React")}           React hooks and components
+                    ${chalk.cyan("https://github.com/contextwtf/context-react")}
+                    ${chalk.dim("npm: context-markets-react")}
+
+  ${chalk.bold("Skills")}          Agent skills and prompt templates
+                    ${chalk.cyan("https://github.com/contextwtf/context-skills")}
+
+  ${chalk.bold("Docs")}            ${chalk.cyan("https://docs.context.markets")}
+`);
           break;
         }
         default:

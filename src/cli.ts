@@ -6,6 +6,7 @@
 
 import { parseArgs, fail, setOutputMode, getOutputMode } from "./format.js";
 import { printFail } from "./ui/output.js";
+import chalk from "chalk";
 
 const HELP_TEXT = `Usage: context <command> [subcommand] [options]
 
@@ -16,6 +17,7 @@ Commands:
   account                         Wallet status, deposits, withdrawals
   questions                       Submit questions for AI market generation
   guides [topic]                  View usage guides
+  ecosystem                       Show ecosystem repos and links
   shell                           Interactive mode
 
 Onboarding:
@@ -27,13 +29,22 @@ Onboarding:
 
 Options:
   -o, --output <table|json>       Output format (auto-detects TTY)
-  --api-key <key>                 Context API key (or CONTEXT_API_KEY env)
-  --private-key <key>             Private key (or CONTEXT_PRIVATE_KEY env)
-  --rpc-url <url>                 Base Sepolia RPC URL (or CONTEXT_RPC_URL env)
-  --chain <chain>                 Target chain (or CONTEXT_CHAIN env, default: mainnet)
+  --api-key <key>                 Context API key
+  --private-key <key>             Private key for trading
+  --rpc-url <url>                 Custom RPC URL
+  --chain <chain>                 Target chain (default: mainnet)
   --yes                           Skip confirmations (for automation)
+  --help                          Show help for a command
 
-Run "context help" for this message, or "context <command> help" for details.`;
+Config:
+  Credentials are loaded from (highest priority first):
+    1. CLI flags (--api-key, --private-key)
+    2. Environment variables (CONTEXT_API_KEY, CONTEXT_PRIVATE_KEY)
+    3. Config file (~/.config/context/config.env)
+
+  Run "context setup" to create a wallet and save credentials automatically.
+
+Run "context <command> help" or "context <command> --help" for command details.`;
 
 // ---------------------------------------------------------------------------
 // Error message cleanup — sanitize raw SDK / zod / viem errors for display
@@ -190,6 +201,35 @@ Options:
           ? [parsed.subcommand, ...parsed.positional]
           : parsed.positional;
         await mod.default({ ...parsed, subcommand: parsed.command, positional });
+        break;
+      }
+
+      case "ecosystem": {
+        console.log(`
+${chalk.bold("Context Markets Ecosystem")}
+${chalk.dim("────────────────────────────")}
+
+  ${chalk.bold("SDK")}             TypeScript SDK for Context Markets
+                    ${chalk.cyan("https://github.com/contextwtf/context-sdk")}
+                    ${chalk.dim("npm: context-markets")}
+
+  ${chalk.bold("CLI")}             Command-line interface (this tool)
+                    ${chalk.cyan("https://github.com/contextwtf/context-cli")}
+                    ${chalk.dim("npm: context-markets-cli")}
+
+  ${chalk.bold("MCP Server")}      Model Context Protocol server for AI agents
+                    ${chalk.cyan("https://github.com/contextwtf/context-mcp")}
+                    ${chalk.dim("npm: context-markets-mcp")}
+
+  ${chalk.bold("React")}           React hooks and components
+                    ${chalk.cyan("https://github.com/contextwtf/context-react")}
+                    ${chalk.dim("npm: context-markets-react")}
+
+  ${chalk.bold("Skills")}          Agent skills and prompt templates
+                    ${chalk.cyan("https://github.com/contextwtf/context-skills")}
+
+  ${chalk.bold("Docs")}            ${chalk.cyan("https://docs.context.markets")}
+`);
         break;
       }
 
