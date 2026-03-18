@@ -7,6 +7,7 @@ import chalk from "chalk";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, getOutputMode, requirePositional, type ParsedArgs } from "../format.js";
+import { saveConfig, configPath } from "../config.js";
 
 export default async function handleSetup(parsed: ParsedArgs): Promise<void> {
   const { subcommand, positional, flags } = parsed;
@@ -24,6 +25,81 @@ export default async function handleSetup(parsed: ParsedArgs): Promise<void> {
       return gaslessDeposit(positional, flags);
     default:
       fail(`Unknown setup subcommand: "${subcommand}"`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared approve → mint → deposit flow
+// ---------------------------------------------------------------------------
+
+async function onboardingFlow(ctx: ReturnType<typeof tradingClient>): Promise<void> {
+  const status = await ctx.account.status();
+
+  if (!status.isReady) {
+    const doApprove = await p.confirm({
+      message: "Approve contracts for trading? (gasless)",
+    });
+    if (p.isCancel(doApprove)) {
+      p.outro("Setup cancelled.");
+      process.exit(0);
+    }
+    if (doApprove) {
+      const s = p.spinner();
+      s.start("Approving contracts...");
+      await ctx.account.gaslessSetup();
+      s.stop("Contracts approved");
+    }
+  } else {
+    p.log.success("Contracts already approved");
+  }
+
+  // Mint step — graceful failure
+  const doMint = await p.confirm({
+    message: "Mint test USDC? (1000 USDC)",
+  });
+  if (p.isCancel(doMint)) {
+    p.outro("Setup cancelled.");
+    process.exit(0);
+  }
+  if (doMint) {
+    const s = p.spinner();
+    s.start("Minting test USDC...");
+    try {
+      await ctx.account.mintTestUsdc(1000);
+      s.stop("Minted 1,000 USDC");
+    } catch (err) {
+      s.stop("Minting failed");
+      const msg = err instanceof Error ? err.message : String(err);
+      p.log.warning(`Could not mint test USDC: ${msg.split("\n")[0]}`);
+      p.log.info("You can try again later with: context account mint-test-usdc");
+    }
+  }
+
+  // Deposit step
+  const doDeposit = await p.confirm({
+    message: "Deposit USDC to start trading?",
+  });
+  if (p.isCancel(doDeposit)) {
+    p.outro("Setup cancelled.");
+    process.exit(0);
+  }
+  if (doDeposit) {
+    const amount = await p.text({
+      message: "Enter amount to deposit:",
+      placeholder: "500",
+      validate: (v = "") => {
+        const n = parseFloat(v);
+        if (isNaN(n) || n <= 0) return "Must be a positive number";
+      },
+    });
+    if (p.isCancel(amount)) {
+      p.outro("Setup cancelled.");
+      process.exit(0);
+    }
+    const s = p.spinner();
+    s.start("Depositing USDC...");
+    await ctx.account.gaslessDeposit(parseFloat(amount as string));
+    s.stop(`Deposited $${parseFloat(amount as string).toFixed(2)} USDC`);
   }
 }
 
@@ -83,73 +159,11 @@ async function setup(flags: Record<string, string>): Promise<void> {
     );
     p.log.info(`Address: ${account.address}`);
 
-    // Check status and offer next steps
     const ctx = tradingClient(flags as ClientFlags);
-    const status = await ctx.account.status();
-
-    if (!status.isReady) {
-      const doApprove = await p.confirm({
-        message: "Approve contracts for trading? (gasless)",
-      });
-      if (p.isCancel(doApprove)) {
-        p.outro("Setup cancelled.");
-        process.exit(0);
-      }
-      if (doApprove) {
-        const s = p.spinner();
-        s.start("Approving contracts...");
-        await ctx.account.gaslessSetup();
-        s.stop("Contracts approved");
-      }
-    } else {
-      p.log.success("Contracts already approved");
-    }
-
-    // Offer mint
-    const doMint = await p.confirm({
-      message: "Mint test USDC? (1000 USDC)",
-    });
-    if (p.isCancel(doMint)) {
-      p.outro("Setup cancelled.");
-      process.exit(0);
-    }
-    if (doMint) {
-      const s = p.spinner();
-      s.start("Minting test USDC...");
-      await ctx.account.mintTestUsdc(1000);
-      s.stop("Minted 1,000 USDC");
-    }
-
-    // Offer deposit
-    const doDeposit = await p.confirm({
-      message: "Deposit USDC to start trading?",
-    });
-    if (p.isCancel(doDeposit)) {
-      p.outro("Setup cancelled.");
-      process.exit(0);
-    }
-    if (doDeposit) {
-      const amount = await p.text({
-        message: "Enter amount to deposit:",
-        placeholder: "500",
-        validate: (v = "") => {
-          const n = parseFloat(v);
-          if (isNaN(n) || n <= 0) return "Must be a positive number";
-        },
-      });
-      if (p.isCancel(amount)) {
-        p.outro("Setup cancelled.");
-        process.exit(0);
-      }
-      const s = p.spinner();
-      s.start("Depositing USDC...");
-      await ctx.account.gaslessDeposit(parseFloat(amount as string));
-      s.stop(`Deposited $${parseFloat(amount as string).toFixed(2)} USDC`);
-    }
-
+    await onboardingFlow(ctx);
     p.outro(chalk.green("Setup complete! You're ready to trade."));
   } else {
-    // No wallet configured
+    // No wallet configured — generate or import
     const hasKey = await p.select({
       message: "Do you have an existing private key?",
       options: [
@@ -163,8 +177,10 @@ async function setup(flags: Record<string, string>): Promise<void> {
       process.exit(0);
     }
 
+    let key: string;
+
     if (hasKey === "yes") {
-      const key = await p.text({
+      const input = await p.text({
         message: "Enter your private key:",
         placeholder: "0x...",
         validate: (v = "") => {
@@ -172,33 +188,69 @@ async function setup(flags: Record<string, string>): Promise<void> {
             return "Invalid private key format (must be 0x + 64 hex chars)";
         },
       });
-      if (p.isCancel(key)) {
+      if (p.isCancel(input)) {
         p.outro("Setup cancelled.");
         process.exit(0);
       }
-
+      key = input as string;
       const account = privateKeyToAccount(key as `0x${string}`);
       p.log.success("Wallet imported");
       p.log.info(`Address: ${account.address}`);
-      p.log.warning(`Set your key: export CONTEXT_PRIVATE_KEY="${key}"`);
     } else {
-      const newKey = generatePrivateKey();
-      const account = privateKeyToAccount(newKey);
+      key = generatePrivateKey();
+      const account = privateKeyToAccount(key as `0x${string}`);
       p.log.success("Wallet created");
       p.log.info(`Address: ${account.address}`);
       p.log.warning("Back up your private key! It cannot be recovered.");
-      p.log.info(`export CONTEXT_PRIVATE_KEY="${newKey}"`);
     }
 
-    p.outro("Set CONTEXT_PRIVATE_KEY and re-run `context setup` to continue.");
-  }
+    // Offer to save to config file
+    const doSave = await p.confirm({
+      message: `Save credentials to ${configPath()}?`,
+    });
+    if (p.isCancel(doSave)) {
+      p.outro("Setup cancelled.");
+      process.exit(0);
+    }
+    if (doSave) {
+      saveConfig({ CONTEXT_PRIVATE_KEY: key });
+      p.log.success(`Saved to ${configPath()} (chmod 600)`);
+    } else {
+      p.log.info(`Set your key: export CONTEXT_PRIVATE_KEY="${key}"`);
+    }
 
-  console.log();
-  console.log(chalk.dim("  Next steps:"));
-  console.log(chalk.dim("    context markets list          Browse markets"));
-  console.log(chalk.dim("    context guides trading        Learn to trade"));
-  console.log(chalk.dim("    context shell                 Interactive mode"));
-  console.log();
+    // Also prompt for API key if not already set
+    const existingApiKey = flags["api-key"] ?? process.env.CONTEXT_API_KEY;
+    if (!existingApiKey) {
+      const apiKey = await p.text({
+        message: "Enter your Context API key (get one at context.markets):",
+        placeholder: "ctx_...",
+        validate: (v = "") => {
+          if (!v.trim()) return "API key is required to continue";
+        },
+      });
+      if (p.isCancel(apiKey)) {
+        p.outro("Setup cancelled.");
+        process.exit(0);
+      }
+      if (doSave) {
+        saveConfig({ CONTEXT_API_KEY: apiKey as string });
+        p.log.success("API key saved to config");
+      } else {
+        p.log.info(`Set your key: export CONTEXT_API_KEY="${apiKey}"`);
+      }
+      // Set in env so tradingClient picks it up for the rest of this session
+      process.env.CONTEXT_API_KEY = apiKey as string;
+    }
+
+    // Set key in env so tradingClient picks it up for the rest of this session
+    process.env.CONTEXT_PRIVATE_KEY = key;
+
+    // Continue with approve → mint → deposit flow
+    const ctx = tradingClient(flags as ClientFlags);
+    await onboardingFlow(ctx);
+    p.outro(chalk.green("Setup complete! You're ready to trade."));
+  }
 }
 
 // ---------------------------------------------------------------------------
