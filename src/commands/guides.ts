@@ -3,12 +3,14 @@
 // ---------------------------------------------------------------------------
 
 import { readFileSync, readdirSync } from "fs";
-import { join, basename } from "path";
+import { join, dirname, basename } from "path";
+import { fileURLToPath } from "url";
 import chalk from "chalk";
 import { fail, type ParsedArgs } from "../format.js";
 
-// Skills directory is at project root /skills/ relative to this file
-const SKILLS_DIR = join(import.meta.dir, "../../skills");
+// When bundled by tsup into dist/cli.js, resolve skills/ relative to the package root.
+// import.meta.url gives us the location of the running script (dist/cli.js).
+const SKILLS_DIR = join(dirname(fileURLToPath(import.meta.url)), "../skills");
 
 /** Map of guide slug -> { description, file } */
 function loadGuideIndex(): Map<string, { description: string; file: string }> {
