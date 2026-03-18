@@ -109,6 +109,20 @@ async function main() {
   const parsed = parseArgs(process.argv);
   setOutputMode(parsed.flags);
 
+  // "context --help" → parseArgs sets command to "--help", fix it
+  if (parsed.command === "--help" || parsed.command === "-h") {
+    parsed.command = "help";
+  }
+
+  // --help flag on any command → treat as "context <command> help"
+  if (parsed.flags["help"] === "true") {
+    if (parsed.command === "help") {
+      console.log(HELP_TEXT);
+      return;
+    }
+    parsed.subcommand = "help";
+  }
+
   // Default to shell mode when no command and running in a TTY
   if (parsed.command === "help" && process.stdout.isTTY && process.stdin.isTTY) {
     const { runShell } = await import("./shell.js");
@@ -153,6 +167,23 @@ async function main() {
       case "deposit":
       case "gasless-approve":
       case "gasless-deposit": {
+        // "context setup help" → show setup help, not run the wizard
+        if (parsed.subcommand === "help" || parsed.flags["help"] === "true") {
+          console.log(`Usage: context ${parsed.command} [options]
+
+${parsed.command === "setup" ? "Guided wallet setup wizard. Generates or imports a wallet, approves contracts,\nmints test USDC, and deposits — all in one step." :
+  parsed.command === "approve" ? "Approve the operator and USDC allowance for on-chain trading." :
+  parsed.command === "deposit" ? "Deposit USDC into the exchange.\n\nUsage: context deposit <amount>" :
+  parsed.command === "gasless-approve" ? "Gasless operator approval via relayer (no gas needed)." :
+  "Gasless USDC deposit via permit (no gas needed).\n\nUsage: context gasless-deposit <amount>"}
+
+Options:
+  --api-key <key>       Context API key
+  --private-key <key>   Private key
+  --chain <chain>       Target chain (default: mainnet)
+  --yes                 Skip confirmations`);
+          break;
+        }
         const mod = await import("./commands/setup.js");
         // Preserve the original subcommand as a positional arg (e.g. "deposit 100" → positional: ["100"])
         const positional = parsed.subcommand
