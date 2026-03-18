@@ -6,6 +6,7 @@ import { ContextClient } from "context-markets";
 import type { ChainOption } from "context-markets";
 import type { Hex } from "viem";
 import { fail } from "./format.js";
+import { loadConfig } from "./config.js";
 
 export interface ClientFlags {
   "api-key"?: string;
@@ -19,8 +20,8 @@ export interface ClientFlags {
  * Resolve the chain option from --chain flag or CONTEXT_CHAIN env var.
  * Returns undefined if not set (SDK defaults to mainnet).
  */
-function resolveChain(flags: ClientFlags): ChainOption | undefined {
-  const raw = flags.chain ?? process.env.CONTEXT_CHAIN;
+function resolveChain(flags: ClientFlags, config: Record<string, string> = {}): ChainOption | undefined {
+  const raw = flags.chain ?? process.env.CONTEXT_CHAIN ?? config.CONTEXT_CHAIN;
   if (!raw) return undefined;
   return raw as ChainOption;
 }
@@ -30,11 +31,12 @@ function resolveChain(flags: ClientFlags): ChainOption | undefined {
  * API key is resolved from --api-key flag or CONTEXT_API_KEY env var.
  */
 export function readClient(flags: ClientFlags = {}): ContextClient {
-  const apiKey = flags["api-key"] ?? process.env.CONTEXT_API_KEY;
-  if (!apiKey) fail("Missing CONTEXT_API_KEY env var or --api-key flag");
-  const rpcUrl = flags["rpc-url"] ?? process.env.CONTEXT_RPC_URL;
-  const baseUrl = flags["base-url"] ?? process.env.CONTEXT_BASE_URL;
-  const chain = resolveChain(flags);
+  const config = loadConfig();
+  const apiKey = flags["api-key"] ?? process.env.CONTEXT_API_KEY ?? config.CONTEXT_API_KEY;
+  if (!apiKey) fail("Missing CONTEXT_API_KEY. Set via --api-key flag, CONTEXT_API_KEY env, or ~/.config/context/config.env");
+  const rpcUrl = flags["rpc-url"] ?? process.env.CONTEXT_RPC_URL ?? config.CONTEXT_RPC_URL;
+  const baseUrl = flags["base-url"] ?? process.env.CONTEXT_BASE_URL ?? config.CONTEXT_BASE_URL;
+  const chain = resolveChain(flags, config);
   return new ContextClient({ apiKey, rpcUrl, baseUrl, chain });
 }
 
@@ -44,20 +46,21 @@ export function readClient(flags: ClientFlags = {}): ContextClient {
  * API key is resolved from --api-key flag or CONTEXT_API_KEY env var.
  */
 export function tradingClient(flags: ClientFlags = {}): ContextClient {
-  const apiKey = flags["api-key"] ?? process.env.CONTEXT_API_KEY;
-  if (!apiKey) fail("Missing CONTEXT_API_KEY env var or --api-key flag");
+  const config = loadConfig();
+  const apiKey = flags["api-key"] ?? process.env.CONTEXT_API_KEY ?? config.CONTEXT_API_KEY;
+  if (!apiKey) fail("Missing CONTEXT_API_KEY. Set via --api-key flag, CONTEXT_API_KEY env, or ~/.config/context/config.env");
 
-  const privateKey = flags["private-key"] ?? process.env.CONTEXT_PRIVATE_KEY;
+  const privateKey = flags["private-key"] ?? process.env.CONTEXT_PRIVATE_KEY ?? config.CONTEXT_PRIVATE_KEY;
   if (!privateKey) {
     fail(
       "A private key is required for trading operations.",
-      { hint: "Set CONTEXT_PRIVATE_KEY env var or pass --private-key <key>" },
+      { hint: "Set CONTEXT_PRIVATE_KEY env var, pass --private-key <key>, or run `context setup`" },
     );
   }
 
-  const rpcUrl = flags["rpc-url"] ?? process.env.CONTEXT_RPC_URL;
-  const baseUrl = flags["base-url"] ?? process.env.CONTEXT_BASE_URL;
-  const chain = resolveChain(flags);
+  const rpcUrl = flags["rpc-url"] ?? process.env.CONTEXT_RPC_URL ?? config.CONTEXT_RPC_URL;
+  const baseUrl = flags["base-url"] ?? process.env.CONTEXT_BASE_URL ?? config.CONTEXT_BASE_URL;
+  const chain = resolveChain(flags, config);
   return new ContextClient({
     apiKey,
     rpcUrl,
