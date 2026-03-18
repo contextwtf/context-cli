@@ -11,6 +11,8 @@
   <a href="https://discord.gg/RVmzZsAyM4"><img src="https://img.shields.io/badge/Discord-Join-7289da" alt="Discord" /></a>
 </p>
 
+> **🤖 Agents: If you're reading this, start with [Agent Onboarding](#agent-onboarding) below.** It walks you through setting up a wallet, approving contracts, and placing your first trade — all non-interactive via JSON.
+
 ## Install
 
 ```bash
@@ -85,28 +87,63 @@ context portfolio overview
 context shell
 ```
 
-## Agent Workflow
+## Agent Onboarding
 
-The CLI supports a fully non-interactive JSON mode for AI agents:
+**This section is for AI agents and automated systems.** All commands below produce structured JSON and require no interactive input.
+
+### Step 1: Install and generate a wallet
 
 ```bash
-# 1. Generate wallet and save to config
-context setup --output json --save
-# → { "status": "new_wallet", "address": "0x...", "privateKey": "0x...", "configPath": "..." }
+npm install -g context-markets-cli
 
-# 2. Approve contracts (after funding wallet with ETH on Base)
+# Generate a wallet and save credentials to ~/.config/context/config.env
+context setup --output json --save --api-key <YOUR_API_KEY>
+# → { "status": "new_wallet", "address": "0x...", "privateKey": "0x...", "configPath": "..." }
+```
+
+### Step 2: Fund the wallet
+
+Send ETH and USDC to the wallet address on **Base** (chain ID 8453):
+- **ETH** — needed for gas fees (0.001 ETH is enough for many transactions)
+- **USDC** — the trading currency
+
+### Step 3: Approve contracts and deposit
+
+```bash
+# Approve the exchange contracts (requires ETH for gas)
 context approve --output json
 # → { "status": "approved", "usdcApprovalTx": "0x...", "operatorApprovalTx": "0x..." }
 
-# 3. Deposit USDC
+# Deposit USDC into the exchange
 context deposit 100 --output json
-# → { "status": "deposited", "amount_usdc": 100, "tx_hash": "0x..." }
+# → { "status": "deposited", "amount": 100, "txHash": "0x..." }
+```
 
-# 4. Trade
+### Step 4: Trade
+
+```bash
+# Browse active markets
+context markets list --status active --output json
+
+# Get quotes for a market
+context markets quotes <market-id> --output json
+
+# Place a limit order
 context orders create --market <id> --outcome yes --side buy --price 45 --size 10 --output json
+
+# Check positions
+context portfolio overview --output json
 ```
 
 All commands accept `--output json` for structured output. When piped (non-TTY), JSON is the default.
+
+### Using with Claude Code
+
+Add the MCP server for full agent integration:
+
+```bash
+claude mcp add context-markets -- npx context-markets-mcp
+```
 
 ## Commands
 
