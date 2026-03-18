@@ -3,12 +3,14 @@
 // ---------------------------------------------------------------------------
 
 import { readFileSync, readdirSync } from "fs";
-import { join, basename } from "path";
+import { join, dirname, basename } from "path";
+import { fileURLToPath } from "url";
 import chalk from "chalk";
-import { fail, type ParsedArgs } from "../format.js";
+import { out, fail, getOutputMode, type ParsedArgs } from "../format.js";
 
-// Skills directory is at project root /skills/ relative to this file
-const SKILLS_DIR = join(import.meta.dir, "../../skills");
+// When bundled by tsup into dist/cli.js, resolve skills/ relative to the package root.
+// import.meta.url gives us the location of the running script (dist/cli.js).
+const SKILLS_DIR = join(dirname(fileURLToPath(import.meta.url)), "../skills");
 
 /** Map of guide slug -> { description, file } */
 function loadGuideIndex(): Map<string, { description: string; file: string }> {
@@ -88,6 +90,16 @@ export default async function handleGuides(parsed: ParsedArgs): Promise<void> {
   const guides = loadGuideIndex();
 
   if (!topic) {
+    // JSON mode: structured list
+    if (getOutputMode() === "json") {
+      const list = Array.from(guides.entries()).map(([slug, info]) => ({
+        slug,
+        description: info.description,
+      }));
+      out(list);
+      return;
+    }
+
     console.log();
     console.log(chalk.bold("  Available Guides"));
     console.log(chalk.dim("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"));
@@ -111,5 +123,12 @@ export default async function handleGuides(parsed: ParsedArgs): Promise<void> {
   }
 
   const content = readFileSync(join(SKILLS_DIR, guide!.file), "utf-8");
+
+  // JSON mode: return raw markdown content
+  if (getOutputMode() === "json") {
+    out({ slug: topic, description: guide!.description, content });
+    return;
+  }
+
   console.log(renderMarkdown(content));
 }

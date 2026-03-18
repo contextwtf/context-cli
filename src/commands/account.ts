@@ -2,6 +2,7 @@
 // Account commands — wallet status, setup, deposits, withdrawals, minting
 // ---------------------------------------------------------------------------
 
+import { formatEther } from "viem";
 import { tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, requirePositional, type ParsedArgs } from "../format.js";
 import { formatMoney, formatVolume, formatAddress, truncate } from "../ui/format.js";
@@ -16,6 +17,9 @@ Subcommands:
 
   deposit <amount>                  Deposit USDC into the exchange
   withdraw <amount>                 Withdraw USDC from the exchange
+
+  gasless-approve                   Approve contracts via relayer (no gas needed)
+  gasless-deposit <amount>          Deposit via USDC permit + relayer (no gas needed)
 
   mint-complete-sets <market-id> <amount>
                                     Mint complete sets of outcome tokens
@@ -51,13 +55,17 @@ export default async function handleAccount(
       return mintCompleteSets(positional, flags);
     case "burn-complete-sets":
       return burnCompleteSets(positional, flags);
+    case "gasless-approve":
+      return gaslessApprove(flags);
+    case "gasless-deposit":
+      return gaslessDeposit(positional, flags);
     case "relay-operator-approval":
       return fail(
-        "Use `context gasless-approve` for gasless operator approval.",
+        "Use `context account gasless-approve` for gasless operator approval.",
       );
     case "relay-deposit":
       return fail(
-        "Use `context gasless-deposit <amount>` for gasless deposit.",
+        "Use `context account gasless-deposit <amount>` for gasless deposit.",
       );
     case "help":
     case undefined:
@@ -76,15 +84,29 @@ export default async function handleAccount(
 
 async function status(flags: Record<string, string>): Promise<void> {
   const ctx = tradingClient(flags as ClientFlags);
-  const result = await ctx.account.status();
+
+  // Fetch account status and portfolio balance in parallel
+  const [result, balanceResult] = await Promise.all([
+    ctx.account.status(),
+    ctx.portfolio.balance(),
+  ]);
   const s = result as any;
+  const b = balanceResult as any;
+
+  // Format ETH balance from wei to human-readable
+  const ethFormatted = s.ethBalance != null
+    ? `${formatEther(BigInt(s.ethBalance))} ETH`
+    : "\u2014";
+
   out(result, {
     detail: [
       ["Address", formatAddress(s.address)],
-      ["ETH Balance", s.ethBalance || "\u2014"],
+      ["ETH Balance", ethFormatted],
+      ["Total Balance", formatVolume(b.usdc?.balance)],
+      ["Settlement", formatVolume(b.usdc?.settlementBalance)],
+      ["Wallet", formatVolume(b.usdc?.walletBalance)],
       ["USDC Allowance", s.usdcAllowance ? "\u2713 Approved" : "\u2717 None"],
       ["Operator", s.isOperatorApproved ? "\u2713 Approved" : "\u2717 Not approved"],
-      ["USDC Balance", s.usdcBalance || "\u2014"],
       ["Needs Setup", s.isReady ? "No" : "Yes \u2014 run `context setup`"],
     ],
   });
@@ -262,4 +284,39 @@ async function burnCompleteSets(
       ["Tx Hash", formatAddress(txHash)],
     ],
   });
+}
+
+// ---------------------------------------------------------------------------
+// gasless-approve — approve contracts via relayer (no gas needed)
+// ---------------------------------------------------------------------------
+
+async function gaslessApprove(flags: Record<string, string>): Promise<void> {
+  const ctx = tradingClient(flags as ClientFlags);
+  const result = await ctx.account.gaslessSetup();
+  out(result);
+}
+
+// ---------------------------------------------------------------------------
+// gasless-deposit — deposit via USDC permit + relayer (no gas needed)
+// ---------------------------------------------------------------------------
+
+async function gaslessDeposit(
+  positional: string[],
+  flags: Record<string, string>,
+): Promise<void> {
+  const raw = requirePositional(
+    positional,
+    0,
+    "amount",
+    "context account gasless-deposit <amount>",
+  );
+
+  const amount = parseFloat(raw);
+  if (isNaN(amount) || amount <= 0) {
+    fail("Deposit amount must be a positive number.", { received: raw });
+  }
+
+  const ctx = tradingClient(flags as ClientFlags);
+  const result = await ctx.account.gaslessDeposit(amount);
+  out(result);
 }
