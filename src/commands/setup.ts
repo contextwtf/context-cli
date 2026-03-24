@@ -4,13 +4,20 @@
 
 import * as p from "@clack/prompts";
 import chalk from "chalk";
+import { ContextApiError, type AccountStatus } from "context-markets";
 import { formatEther } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, getOutputMode, requirePositional, type ParsedArgs } from "../format.js";
 import { loadConfig, saveConfig, configPath } from "../config.js";
+import { confirmAction } from "../ui/prompt.js";
 
 const MIN_ETH_FOR_GAS = 1_000_000_000_000n; // 0.000001 ETH — just enough for a few txs
+const PRIVATE_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 export default async function handleSetup(parsed: ParsedArgs): Promise<void> {
   const { subcommand, positional, flags } = parsed;
@@ -49,11 +56,9 @@ function formatError(err: unknown): string {
     if (current instanceof Error) deepest = current;
   }
 
-  // If there's a body with details (ContextApiError), show that
-  const anyErr = err as any;
-  if (anyErr.body) {
-    const body = anyErr.body;
-    if (typeof body === "object" && body.message) return body.message;
+  if (err instanceof ContextApiError) {
+    const body = err.body;
+    if (isRecord(body) && typeof body.message === "string") return body.message;
     if (typeof body === "string") return body;
   }
 
@@ -61,12 +66,6 @@ function formatError(err: unknown): string {
   const deepMsg = deepest.message.split("\n")[0];
   const topMsg = err.message.split("\n")[0];
   return deepMsg !== topMsg && deepMsg.length > 5 ? `${topMsg}: ${deepMsg}` : topMsg;
-}
-
-/** Check if an error is due to insufficient ETH for gas */
-function isInsufficientFundsError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.includes("insufficient funds") || msg.includes("exceeds the balance");
 }
 
 /**
@@ -104,7 +103,7 @@ async function ensureGasFunded(
     const s = p.spinner();
     s.start("Checking balance...");
     const updated = await ctx.account.status();
-    ethBalance = (updated as any).ethBalance as bigint;
+    ethBalance = updated.ethBalance;
     if (ethBalance >= MIN_ETH_FOR_GAS) {
       s.stop(`ETH balance: ${formatEther(ethBalance)} ETH`);
       return true;
@@ -146,10 +145,8 @@ async function onboardingFlow(ctx: ReturnType<typeof tradingClient>): Promise<bo
   // Single status fetch upfront — used for all checks
   const s = p.spinner();
   s.start("Checking wallet status...");
-  const status = await ctx.account.status();
-  const address = (status as any).address as string;
-  const ethBalance = (status as any).ethBalance as bigint;
-  const usdcBalance = (status as any).usdcBalance as bigint;
+  const status: AccountStatus = await ctx.account.status();
+  const { address, ethBalance, usdcBalance } = status;
   const isReady = status.isReady;
   s.stop("Wallet status loaded");
 
@@ -218,7 +215,7 @@ async function onboardingFlow(ctx: ReturnType<typeof tradingClient>): Promise<bo
         const sp = p.spinner();
         sp.start("Checking USDC balance...");
         const updated = await ctx.account.status();
-        currentUsdcBalance = (updated as any).usdcBalance as bigint;
+        currentUsdcBalance = updated.usdcBalance;
         const formatted = Number(currentUsdcBalance) / 1e6;
         if (currentUsdcBalance > 0n) {
           sp.stop(`USDC balance: $${formatted.toFixed(2)}`);
@@ -288,28 +285,27 @@ async function setup(flags: Record<string, string>): Promise<void> {
     flags["private-key"] ?? process.env.CONTEXT_PRIVATE_KEY ?? existingConfig.CONTEXT_PRIVATE_KEY;
 
   // JSON mode: non-interactive, suitable for agents
+  // Always force-save in JSON mode since agents can't manually back up keys.
   if (getOutputMode() === "json") {
     if (!privateKey) {
       const newKey = generatePrivateKey();
       const account = privateKeyToAccount(newKey);
 
-      // --save: persist to config file automatically
-      if (flags["save"] === "true" || flags["yes"]) {
-        saveConfig({ CONTEXT_PRIVATE_KEY: newKey });
-        if (flags["api-key"]) {
-          saveConfig({ CONTEXT_API_KEY: flags["api-key"] });
-        }
+      // Always save in JSON mode — agents can't manually back up keys
+      saveConfig({ CONTEXT_PRIVATE_KEY: newKey });
+      if (flags["api-key"]) {
+        saveConfig({ CONTEXT_API_KEY: flags["api-key"] });
       }
 
       out({
         status: "new_wallet",
         address: account.address,
-        privateKey: newKey,
-        configPath: (flags["save"] === "true" || flags["yes"]) ? configPath() : null,
+        saved: true,
+        configPath: configPath(),
         nextSteps: [
           "Send ETH to the wallet on Base for gas fees.",
-          "Run `context approve --private-key <key> --output json` to approve contracts.",
-          "Run `context deposit <amount> --private-key <key> --output json` to deposit USDC.",
+          "Run `context approve --output json` to approve contracts.",
+          "Run `context deposit <amount> --output json` to deposit USDC.",
         ],
       });
       return;
@@ -398,11 +394,10 @@ async function setupNewWallet(flags: Record<string, string>): Promise<void> {
   let key: string;
 
   if (hasKey === "yes") {
-    const input = await p.text({
+    const input = await p.password({
       message: "Enter your private key:",
-      placeholder: "0x...",
       validate: (v = "") => {
-        if (!v.startsWith("0x") || v.length !== 66)
+        if (!PRIVATE_KEY_PATTERN.test(v))
           return "Invalid private key format (must be 0x + 64 hex chars)";
       },
     });
@@ -419,22 +414,48 @@ async function setupNewWallet(flags: Record<string, string>): Promise<void> {
     const account = privateKeyToAccount(key as `0x${string}`);
     p.log.success("Wallet created");
     p.log.info(`Address: ${account.address}`);
-    p.log.warning("Back up your private key! It cannot be recovered.");
+
+    // Show the key ONCE so the user can back it up — this is their only chance
+    p.log.warning("Your private key (shown once, save it now):");
+    p.log.info(key);
+
+    const backed = await p.confirm({
+      message: "Have you backed up your private key?",
+    });
+    if (p.isCancel(backed)) {
+      p.outro("Setup cancelled.");
+      process.exit(0);
+    }
+
+    if (!backed) {
+      // User hasn't backed up — offer to save to config file
+      p.log.warning("You will not be able to recover this key if lost.");
+      saveConfig({ CONTEXT_PRIVATE_KEY: key });
+      p.log.success(`Saved to ${configPath()} (chmod 600) — don't lose this file.`);
+    }
   }
 
-  // Offer to save to config file
-  const doSave = await p.confirm({
-    message: `Save credentials to ${configPath()}?`,
-  });
-  if (p.isCancel(doSave)) {
-    p.outro("Setup cancelled.");
-    process.exit(0);
-  }
-  if (doSave) {
-    saveConfig({ CONTEXT_PRIVATE_KEY: key });
-    p.log.success(`Saved to ${configPath()} (chmod 600)`);
-  } else {
-    p.log.info(`Set your key: export CONTEXT_PRIVATE_KEY="${key}"`);
+  // Determine if key was already saved (generated key where user didn't back up)
+  const alreadySaved = loadConfig().CONTEXT_PRIVATE_KEY === key;
+
+  let doSave = alreadySaved;
+  if (!alreadySaved) {
+    // Offer to save to config file
+    const result = await p.confirm({
+      message: `Save credentials to ${configPath()}?`,
+    });
+    if (p.isCancel(result)) {
+      p.outro("Setup cancelled.");
+      process.exit(0);
+    }
+    doSave = !!result;
+    if (doSave) {
+      saveConfig({ CONTEXT_PRIVATE_KEY: key });
+      p.log.success(`Saved to ${configPath()} (chmod 600)`);
+    } else {
+      p.log.info(`Set your key: export CONTEXT_PRIVATE_KEY="<your-key>"`);
+      p.log.info("Or run: context setup --save");
+    }
   }
 
   // Also prompt for API key if not already set
@@ -455,7 +476,8 @@ async function setupNewWallet(flags: Record<string, string>): Promise<void> {
       saveConfig({ CONTEXT_API_KEY: apiKey as string });
       p.log.success("API key saved to config");
     } else {
-      p.log.info(`Set your key: export CONTEXT_API_KEY="${apiKey}"`);
+      p.log.info('Set your key: export CONTEXT_API_KEY="<your-api-key>"');
+      p.log.info("Or run: context setup --save");
     }
     process.env.CONTEXT_API_KEY = apiKey as string;
   }
@@ -497,7 +519,7 @@ async function approve(flags: Record<string, string>): Promise<void> {
 
   const s = p.spinner();
   s.start("Checking wallet status...");
-  const status = await ctx.account.status();
+  const status: AccountStatus = await ctx.account.status();
   s.stop("Wallet status loaded");
 
   if (status.isReady) {
@@ -506,8 +528,7 @@ async function approve(flags: Record<string, string>): Promise<void> {
     return;
   }
 
-  const address = (status as any).address as string;
-  const ethBalance = (status as any).ethBalance as bigint;
+  const { address, ethBalance } = status;
   const funded = await ensureGasFunded(ctx, { address, ethBalance });
   if (!funded) {
     p.outro("Skipped. Run `context approve` when your wallet has ETH.");
@@ -541,6 +562,7 @@ async function deposit(
   }
 
   const ctx = tradingClient(flags as ClientFlags);
+  await confirmAction(`Deposit ${amount} USDC?`, flags);
   const result = await ctx.account.deposit(amount);
 
   out({
@@ -549,4 +571,3 @@ async function deposit(
     txHash: result.txHash,
   });
 }
-

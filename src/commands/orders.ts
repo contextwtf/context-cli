@@ -3,7 +3,14 @@
 // ---------------------------------------------------------------------------
 
 import type { Address, Hex } from "viem";
-import type { OrderStatus } from "context-markets";
+import type {
+  CancelReplaceResult,
+  CancelResult,
+  CreateOrderResult,
+  Order,
+  OrderStatus,
+  PlaceOrderRequest,
+} from "context-markets";
 import { readClient, tradingClient, type ClientFlags } from "../client.js";
 import {
   out,
@@ -12,7 +19,7 @@ import {
   requirePositional,
   type ParsedArgs,
 } from "../format.js";
-import { formatCents, formatPrice, formatAddress, truncate, formatDate } from "../ui/format.js";
+import { formatPrice, formatAddress, truncate, formatDate } from "../ui/format.js";
 import { confirmOrder, confirmAction } from "../ui/prompt.js";
 
 const HELP = `Usage: context orders <subcommand> [options]
@@ -138,6 +145,97 @@ const ORDER_LIST_COLUMNS = [
   { key: "percentFilled", label: "Filled", format: (v: unknown) => v != null ? `${v}%` : "\u2014" },
 ];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parsePlaceOrderRequest(value: unknown, label: string): PlaceOrderRequest {
+  if (!isRecord(value)) {
+    fail(`${label} must be an object`);
+  }
+
+  const marketId = value.marketId;
+  if (typeof marketId !== "string" || !marketId.trim()) {
+    fail(`${label}.marketId must be a non-empty string`);
+  }
+
+  const outcome = value.outcome;
+  if (outcome !== "yes" && outcome !== "no") {
+    fail(`${label}.outcome must be "yes" or "no"`, { received: outcome });
+  }
+
+  const side = value.side;
+  if (side !== "buy" && side !== "sell") {
+    fail(`${label}.side must be "buy" or "sell"`, { received: side });
+  }
+
+  const priceCents = value.priceCents;
+  if (typeof priceCents !== "number" || !Number.isInteger(priceCents) || priceCents < 1 || priceCents > 99) {
+    fail(`${label}.priceCents must be an integer between 1 and 99`, { received: priceCents });
+  }
+
+  const size = value.size;
+  if (typeof size !== "number" || !Number.isFinite(size) || size < 1) {
+    fail(`${label}.size must be a number >= 1`, { received: size });
+  }
+
+  const expirySeconds = value.expirySeconds;
+  if (
+    expirySeconds !== undefined &&
+    (typeof expirySeconds !== "number" || !Number.isInteger(expirySeconds) || expirySeconds <= 0)
+  ) {
+    fail(`${label}.expirySeconds must be a positive integer`, { received: expirySeconds });
+  }
+
+  const inventoryModeConstraint = value.inventoryModeConstraint;
+  if (
+    inventoryModeConstraint !== undefined &&
+    inventoryModeConstraint !== 0 &&
+    inventoryModeConstraint !== 1 &&
+    inventoryModeConstraint !== 2
+  ) {
+    fail(`${label}.inventoryModeConstraint must be 0, 1, or 2`, { received: inventoryModeConstraint });
+  }
+
+  const makerRoleConstraint = value.makerRoleConstraint;
+  if (makerRoleConstraint === 1) {
+    fail(`${label}.makerRoleConstraint=1 (maker/post-only) breaks settlement when two maker-only orders cross`);
+  }
+  if (
+    makerRoleConstraint !== undefined &&
+    makerRoleConstraint !== 0 &&
+    makerRoleConstraint !== 2
+  ) {
+    fail(`${label}.makerRoleConstraint must be 0 or 2`, { received: makerRoleConstraint });
+  }
+
+  return {
+    marketId,
+    outcome,
+    side,
+    priceCents,
+    size,
+    expirySeconds,
+    inventoryModeConstraint,
+    makerRoleConstraint,
+  };
+}
+
+function parsePlaceOrderArray(raw: string, flagName: "orders" | "creates"): PlaceOrderRequest[] {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    fail(`--${flagName} must be valid JSON`, { received: raw });
+  }
+
+  if (!Array.isArray(value)) {
+    fail(`--${flagName} must be a JSON array`, { received: raw });
+  }
+
+  return value.map((item, index) => parsePlaceOrderRequest(item, `--${flagName}[${index}]`));
+}
+
 // ---------------------------------------------------------------------------
 // list — list orders (readClient if --trader given, tradingClient otherwise)
 // ---------------------------------------------------------------------------
@@ -192,20 +290,19 @@ async function get(
   const id = requirePositional(positional, 0, "id", "context orders get <id>");
   const ctx = readClient(flags as ClientFlags);
 
-  const order = await ctx.orders.get(id);
-  const o = order as any;
+  const order: Order = await ctx.orders.get(id);
   out(order, {
     detail: [
-      ["Nonce", String(o.nonce || "\u2014")],
-      ["Market", String(o.marketId || "\u2014")],
-      ["Status", String(o.status || "\u2014")],
-      ["Side", String(o.side ?? "\u2014").toUpperCase()],
-      ["Outcome", (o.outcomeIndex === 1 || o.outcomeIndex === "1") ? "YES" : "NO"],
-      ["Price", formatPrice(o.price)],
-      ["Size", String(o.size || "\u2014")],
-      ["Filled", o.percentFilled != null ? `${o.percentFilled}%` : "\u2014"],
-      ["Trader", formatAddress(o.trader)],
-      ["Created", formatDate(o.insertedAt)],
+      ["Nonce", String(order.nonce || "\u2014")],
+      ["Market", String(order.marketId || "\u2014")],
+      ["Status", String(order.status || "\u2014")],
+      ["Side", String(order.side ?? "\u2014").toUpperCase()],
+      ["Outcome", order.outcomeIndex === 1 ? "YES" : "NO"],
+      ["Price", formatPrice(order.price)],
+      ["Size", String(order.size || "\u2014")],
+      ["Filled", order.percentFilled != null ? `${order.percentFilled}%` : "\u2014"],
+      ["Trader", formatAddress(order.trader)],
+      ["Created", formatDate(order.insertedAt)],
     ],
   });
 }
@@ -350,16 +447,15 @@ async function create(flags: Record<string, string>): Promise<void> {
   }, flags);
 
   const ctx = tradingClient(flags as ClientFlags);
-  const result = await ctx.orders.create(order);
-  const r = result as any;
+  const result: CreateOrderResult = await ctx.orders.create(order);
   out(result, {
     detail: [
-      ["Status", r.success ? "\u2713 Order placed" : "\u2717 Failed"],
-      ["Nonce", String(r.order?.nonce || "\u2014")],
-      ["Market", String(r.order?.marketId || "\u2014")],
-      ["Type", String(r.order?.type || "\u2014")],
-      ["Order Status", String(r.order?.status || "\u2014")],
-      ["Filled", r.order?.percentFilled != null ? `${r.order.percentFilled}%` : "\u2014"],
+      ["Status", result.success ? "\u2713 Order placed" : "\u2717 Failed"],
+      ["Nonce", String(result.order?.nonce || "\u2014")],
+      ["Market", String(result.order?.marketId || "\u2014")],
+      ["Type", String(result.order?.type || "\u2014")],
+      ["Order Status", String(result.order?.status || "\u2014")],
+      ["Filled", result.order?.percentFilled != null ? `${result.order.percentFilled}%` : "\u2014"],
     ],
   });
 }
@@ -382,12 +478,11 @@ async function cancel(
   await confirmAction(`Cancel order ${nonce}?`, flags);
 
   const ctx = tradingClient(flags as ClientFlags);
-  const result = await ctx.orders.cancel(nonce);
-  const r = result as any;
+  const result: CancelResult = await ctx.orders.cancel(nonce);
   out(result, {
     detail: [
-      ["Status", r.success ? "\u2713 Cancelled" : "\u2717 Failed"],
-      ["Already Cancelled", String(r.alreadyCancelled ?? "\u2014")],
+      ["Status", result.success ? "\u2713 Cancelled" : "\u2717 Failed"],
+      ["Already Cancelled", String(result.alreadyCancelled ?? "\u2014")],
     ],
   });
 }
@@ -414,13 +509,12 @@ async function cancelReplace(
   await confirmAction(`Cancel order ${nonce} and place replacement?`, flags);
 
   const ctx = tradingClient(flags as ClientFlags);
-  const result = await ctx.orders.cancelReplace(nonce, newOrder);
-  const r = result as any;
+  const result: CancelReplaceResult = await ctx.orders.cancelReplace(nonce, newOrder);
   out(result, {
     detail: [
-      ["Cancel", r.cancel?.success ? "\u2713 Cancelled" : "\u2717 Failed"],
-      ["New Order", r.create?.success ? "\u2713 Created" : "\u2717 Failed"],
-      ["New Nonce", String(r.create?.order?.nonce || "\u2014")],
+      ["Cancel", result.cancel?.success ? "\u2713 Cancelled" : "\u2717 Failed"],
+      ["New Order", result.create?.success ? "\u2713 Created" : "\u2717 Failed"],
+      ["New Nonce", String(result.create?.order?.nonce || "\u2014")],
     ],
   });
 }
@@ -436,18 +530,10 @@ async function bulkCreate(flags: Record<string, string>): Promise<void> {
     'context orders bulk-create --orders \'[{"marketId":"...","outcome":"yes","side":"buy","priceCents":50,"size":10}]\'',
   );
 
-  let orders: unknown;
-  try {
-    orders = JSON.parse(raw);
-  } catch {
-    fail("--orders must be valid JSON", { received: raw });
-  }
-
-  if (!Array.isArray(orders)) {
-    fail("--orders must be a JSON array", { received: raw });
-  }
+  const orders = parsePlaceOrderArray(raw, "orders");
 
   const ctx = tradingClient(flags as ClientFlags);
+  await confirmAction(`Bulk create ${orders.length} orders?`, flags);
   const result = await ctx.orders.bulkCreate(orders);
   out(result);
 }
@@ -488,16 +574,9 @@ async function bulk(flags: Record<string, string>): Promise<void> {
     });
   }
 
-  let creates: unknown[] = [];
+  let creates: PlaceOrderRequest[] = [];
   if (createsRaw) {
-    try {
-      creates = JSON.parse(createsRaw);
-    } catch {
-      fail("--creates must be valid JSON", { received: createsRaw });
-    }
-    if (!Array.isArray(creates)) {
-      fail("--creates must be a JSON array", { received: createsRaw });
-    }
+    creates = parsePlaceOrderArray(createsRaw, "creates");
   }
 
   const cancelNonces: Hex[] = cancelsRaw
@@ -505,7 +584,15 @@ async function bulk(flags: Record<string, string>): Promise<void> {
     : [];
 
   const ctx = tradingClient(flags as ClientFlags);
-  const result = await ctx.orders.bulk(creates as any, cancelNonces);
+  const createCount = creates.length;
+  const cancelCount = cancelNonces.length;
+  const message = createCount > 0 && cancelCount > 0
+    ? `Bulk create ${createCount} orders and cancel ${cancelCount} orders?`
+    : createCount > 0
+      ? `Bulk create ${createCount} orders?`
+      : `Bulk cancel ${cancelCount} orders?`;
+  await confirmAction(message, flags);
+  const result = await ctx.orders.bulk(creates, cancelNonces);
   out(result);
 }
 
@@ -550,7 +637,7 @@ async function marketOrder(flags: Record<string, string>): Promise<void> {
   }, flags);
 
   const ctx = tradingClient(flags as ClientFlags);
-  const result = await ctx.orders.createMarket({
+  const result: CreateOrderResult = await ctx.orders.createMarket({
     marketId,
     outcome: outcome as "yes" | "no",
     side: side as "buy" | "sell",
@@ -560,15 +647,14 @@ async function marketOrder(flags: Record<string, string>): Promise<void> {
       ? parseInt(flags["expiry-seconds"], 10)
       : undefined,
   });
-  const r = result as any;
   out(result, {
     detail: [
-      ["Status", r.success ? "\u2713 Order placed" : "\u2717 Failed"],
-      ["Nonce", String(r.order?.nonce || "\u2014")],
-      ["Market", String(r.order?.marketId || "\u2014")],
-      ["Type", String(r.order?.type || "\u2014")],
-      ["Order Status", String(r.order?.status || "\u2014")],
-      ["Filled", r.order?.percentFilled != null ? `${r.order.percentFilled}%` : "\u2014"],
+      ["Status", result.success ? "\u2713 Order placed" : "\u2717 Failed"],
+      ["Nonce", String(result.order?.nonce || "\u2014")],
+      ["Market", String(result.order?.marketId || "\u2014")],
+      ["Type", String(result.order?.type || "\u2014")],
+      ["Order Status", String(result.order?.status || "\u2014")],
+      ["Filled", result.order?.percentFilled != null ? `${result.order.percentFilled}%` : "\u2014"],
     ],
   });
 }

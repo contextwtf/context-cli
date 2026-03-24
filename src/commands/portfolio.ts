@@ -2,11 +2,30 @@
 // Portfolio commands — positions, balances, claimable winnings, stats
 // ---------------------------------------------------------------------------
 
+import type {
+  Balance,
+  ClaimableResponse,
+  GetPortfolioParams,
+  Portfolio,
+  PortfolioStats,
+  TokenBalance,
+} from "context-markets";
 import type { Address } from "viem";
 import chalk from "chalk";
 import { readClient, tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, getOutputMode, requirePositional, type ParsedArgs } from "../format.js";
-import { formatMoney, formatVolume, truncate, formatAddress } from "../ui/format.js";
+import { formatVolume, truncate, formatAddress } from "../ui/format.js";
+
+const PORTFOLIO_KINDS: NonNullable<GetPortfolioParams["kind"]>[] = ["all", "active", "won", "lost", "claimable"];
+
+function parsePortfolioKind(raw?: string): GetPortfolioParams["kind"] | undefined {
+  if (!raw) return undefined;
+  if (PORTFOLIO_KINDS.includes(raw as NonNullable<GetPortfolioParams["kind"]>)) {
+    return raw as GetPortfolioParams["kind"];
+  }
+
+  fail("--kind must be one of all, active, won, lost, claimable", { received: raw });
+}
 
 const HELP = `Usage: context portfolio <subcommand> [options]
 
@@ -79,15 +98,13 @@ async function overview(flags: Record<string, string>): Promise<void> {
   const address = addressFlag(flags);
 
   // Fetch balance, stats, and active positions in parallel
-  const [balanceResult, statsResult, positionsResult] = await Promise.all([
+  const [balanceResult, statsResult, positionsResult]: [Balance, PortfolioStats, Portfolio] = await Promise.all([
     ctx.portfolio.balance(address),
     ctx.portfolio.stats(address),
-    ctx.portfolio.get(address, { kind: "active" as any, pageSize: 10 }),
+    ctx.portfolio.get(address, { kind: "active", pageSize: 10 }),
   ]);
 
-  const b = balanceResult as any;
-  const st = statsResult as any;
-  const positions = (positionsResult as any).portfolio || [];
+  const positions = positionsResult.portfolio || [];
 
   // JSON mode: return combined data
   if (getOutputMode() === "json") {
@@ -103,18 +120,19 @@ async function overview(flags: Record<string, string>): Promise<void> {
   // Balance section
   console.log();
   console.log(chalk.bold("  Balance"));
-  console.log(`    USDC Balance     ${formatVolume(b.usdc?.balance)}`);
-  console.log(`    Settlement       ${formatVolume(b.usdc?.settlementBalance)}`);
-  console.log(`    Wallet           ${formatVolume(b.usdc?.walletBalance)}`);
+  console.log(`    USDC Balance     ${formatVolume(balanceResult.usdc?.balance)}`);
+  console.log(`    Settlement       ${formatVolume(balanceResult.usdc?.settlementBalance)}`);
+  console.log(`    Wallet           ${formatVolume(balanceResult.usdc?.walletBalance)}`);
 
   // Stats section
-  if (st) {
+  if (statsResult) {
     console.log();
     console.log(chalk.bold("  Stats"));
-    const statKeys = Object.keys(st).filter(k => k !== "address");
+    const statKeys = Object.keys(statsResult) as Array<keyof PortfolioStats>;
     for (const key of statKeys) {
       const label = key.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).padEnd(18);
-      const val = typeof st[key] === "number" ? formatVolume(st[key]) : String(st[key] ?? "—");
+      const value = statsResult[key];
+      const val = typeof value === "number" ? formatVolume(value) : String(value ?? "—");
       console.log(`    ${label} ${val}`);
     }
   }
@@ -171,7 +189,7 @@ async function getPortfolio(flags: Record<string, string>): Promise<void> {
   const address = addressFlag(flags);
 
   const result = await ctx.portfolio.get(address, {
-    kind: (flags["kind"] as any) || undefined,
+    kind: parsePortfolioKind(flags["kind"]),
     marketId: flags["market"] || undefined,
     cursor: flags["cursor"] || undefined,
     pageSize: flags["page-size"]
@@ -202,12 +220,11 @@ async function claimable(flags: Record<string, string>): Promise<void> {
   const ctx = clientFor(flags);
   const address = addressFlag(flags);
 
-  const result = await ctx.portfolio.claimable(address);
-  const c = result as any;
+  const result: ClaimableResponse = await ctx.portfolio.claimable(address);
   out(result, {
     detail: [
-      ["Total Claimable", formatVolume(c.totalClaimable)],
-      ["Positions", String((c.positions || []).length)],
+      ["Total Claimable", formatVolume(result.totalClaimable)],
+      ["Positions", String((result.positions || []).length)],
     ],
   });
 }
@@ -232,14 +249,13 @@ async function balance(flags: Record<string, string>): Promise<void> {
   const ctx = clientFor(flags);
   const address = addressFlag(flags);
 
-  const result = await ctx.portfolio.balance(address);
-  const b = result as any;
+  const result: Balance = await ctx.portfolio.balance(address);
   out(result, {
     detail: [
-      ["Address", String(b.address || "—")],
-      ["USDC Balance", formatVolume(b.usdc?.balance)],
-      ["Settlement", formatVolume(b.usdc?.settlementBalance)],
-      ["Wallet", formatVolume(b.usdc?.walletBalance)],
+      ["Address", String(result.address || "—")],
+      ["USDC Balance", formatVolume(result.usdc?.balance)],
+      ["Settlement", formatVolume(result.usdc?.settlementBalance)],
+      ["Wallet", formatVolume(result.usdc?.walletBalance)],
     ],
   });
 }
@@ -257,13 +273,13 @@ async function tokenBalance(
   const tokenAddress = requirePositional(positional, 1, "token-address", usage) as Address;
 
   const ctx = readClient(flags as ClientFlags);
-  const result = await ctx.portfolio.tokenBalance(address, tokenAddress);
-  const tb = result as any;
+  const result: TokenBalance = await ctx.portfolio.tokenBalance(address, tokenAddress);
   out(result, {
     detail: [
-      ["Address", formatAddress(tb.address || tb.owner)],
-      ["Token", formatAddress(tb.token || tb.tokenAddress)],
-      ["Balance", String(tb.balance ?? "—")],
+      ["Address", formatAddress(address)],
+      ["Token", formatAddress(tokenAddress)],
+      ["Balance", String(result.balance ?? "—")],
+      ["Symbol", String(result.symbol ?? "—")],
     ],
   });
 }

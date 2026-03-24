@@ -3,6 +3,16 @@
 // ---------------------------------------------------------------------------
 
 import chalk from "chalk";
+import type {
+  ActivityResponse,
+  CreateMarketResult,
+  FullOrderbook,
+  Market,
+  MarketList,
+  PriceTimeframe,
+  Quotes,
+  SimulateResult,
+} from "context-markets";
 import { readClient, tradingClient, type ClientFlags } from "../client.js";
 import {
   out,
@@ -13,14 +23,23 @@ import {
   type ParsedArgs,
 } from "../format.js";
 import {
-  formatCents,
   formatPrice,
-  formatMoney,
   formatVolume,
   formatAddress,
   formatDate,
   truncate,
 } from "../ui/format.js";
+
+const PRICE_TIMEFRAMES: PriceTimeframe[] = ["1h", "6h", "1d", "1w", "1M", "all"];
+
+function parsePriceTimeframe(raw?: string): PriceTimeframe | undefined {
+  if (!raw) return undefined;
+  if (PRICE_TIMEFRAMES.includes(raw as PriceTimeframe)) {
+    return raw as PriceTimeframe;
+  }
+
+  fail("--timeframe must be one of 1h, 6h, 1d, 1w, 1M, all", { received: raw });
+}
 
 const HELP = `Usage: context markets <subcommand> [options]
 
@@ -125,7 +144,7 @@ export default async function handleMarkets(
 async function list(flags: Record<string, string>): Promise<void> {
   const ctx = readClient(flags as ClientFlags);
 
-  const result = await ctx.markets.list({
+  const result: MarketList = await ctx.markets.list({
     status: (flags["status"] as "active" | "pending" | "resolved" | "closed") || undefined,
     sortBy: (flags["sort-by"] as "new" | "volume" | "trending" | "ending" | "chance") || undefined,
     sort: (flags["sort"] as "asc" | "desc") || undefined,
@@ -138,7 +157,7 @@ async function list(flags: Record<string, string>): Promise<void> {
   });
 
   out(result, {
-    rows: (result as any).markets || [],
+    rows: result.markets || [],
     columns: [
       { key: "shortQuestion", label: "Question", format: (v) => truncate(v as string, 34) },
       { key: "outcomePrices[1].buyPrice", label: "Yes", format: formatPrice },
@@ -148,7 +167,7 @@ async function list(flags: Record<string, string>): Promise<void> {
     ],
     numbered: true,
     emptyMessage: "No markets found.",
-    cursor: (result as any).cursor || null,
+    cursor: result.cursor || null,
   });
 }
 
@@ -194,20 +213,19 @@ async function get(
   const id = requirePositional(positional, 0, "id", "context markets get <id>");
   const ctx = readClient(flags as ClientFlags);
 
-  const market = await ctx.markets.get(id);
-  const m = market as any;
+  const market: Market = await ctx.markets.get(id);
   out(market, {
     detail: [
-      ["ID", String(m.id || "\u2014")],
-      ["Question", String(m.question || m.shortQuestion || "\u2014")],
-      ["Status", String(m.status || "\u2014")],
-      ["Yes", m.outcomePrices?.[1] ? `${formatPrice(m.outcomePrices[1].bestBid)} bid / ${formatPrice(m.outcomePrices[1].bestAsk)} ask` : "\u2014"],
-      ["No", m.outcomePrices?.[0] ? `${formatPrice(m.outcomePrices[0].bestBid)} bid / ${formatPrice(m.outcomePrices[0].bestAsk)} ask` : "\u2014"],
-      ["Volume", formatVolume(m.volume)],
-      ["24h Volume", formatVolume(m.volume24h)],
-      ["Participants", String(m.participantCount ?? "\u2014")],
-      ["Deadline", formatDate(m.deadline)],
-      ["Creator", formatAddress(m.creator || m.metadata?.creator)],
+      ["ID", String(market.id || "\u2014")],
+      ["Question", String(market.question || market.shortQuestion || "\u2014")],
+      ["Status", String(market.status || "\u2014")],
+      ["Yes", market.outcomePrices?.[1] ? `${formatPrice(market.outcomePrices[1].bestBid)} bid / ${formatPrice(market.outcomePrices[1].bestAsk)} ask` : "\u2014"],
+      ["No", market.outcomePrices?.[0] ? `${formatPrice(market.outcomePrices[0].bestBid)} bid / ${formatPrice(market.outcomePrices[0].bestAsk)} ask` : "\u2014"],
+      ["Volume", formatVolume(market.volume)],
+      ["24h Volume", formatVolume(market.volume24h)],
+      ["Participants", String(market.participantCount ?? "\u2014")],
+      ["Deadline", formatDate(market.deadline)],
+      ["Creator", formatAddress(market.creator)],
     ],
   });
 }
@@ -222,18 +240,17 @@ async function link(
 ): Promise<void> {
   const id = requirePositional(positional, 0, "id", "context markets link <id>");
   const ctx = readClient(flags as ClientFlags);
-  const market = await ctx.markets.get(id);
-  const m = market as any;
+  const market: Market = await ctx.markets.get(id);
 
-  const slug = m.slug || m.id;
+  const slug = market.metadata?.slug || market.id;
   const url = `https://context.markets/markets/${slug}`;
 
   if (getOutputMode() === "json") {
-    out({ url, marketId: m.id, question: m.question || m.shortQuestion });
+    out({ url, marketId: market.id, question: market.question || market.shortQuestion });
     return;
   }
 
-  const question = m.question || m.shortQuestion || "—";
+  const question = market.question || market.shortQuestion || "—";
   console.log();
   console.log(`  ${chalk.bold(question)}`);
   console.log(`  ${chalk.cyan(url)}`);
@@ -251,14 +268,13 @@ async function quotes(
   const id = requirePositional(positional, 0, "id", "context markets quotes <id>");
   const ctx = readClient(flags as ClientFlags);
 
-  const result = await ctx.markets.quotes(id);
-  const q = result as any;
+  const result: Quotes = await ctx.markets.quotes(id);
   out(result, {
     detail: [
-      ["Market", String(q.marketId || "\u2014")],
-      ["Yes", `${formatPrice(q.yes?.bid)} bid / ${formatPrice(q.yes?.ask)} ask / ${formatPrice(q.yes?.last)} last`],
-      ["No", `${formatPrice(q.no?.bid)} bid / ${formatPrice(q.no?.ask)} ask / ${formatPrice(q.no?.last)} last`],
-      ["Spread", q.spread != null ? `${formatPrice(q.spread)}` : "\u2014"],
+      ["Market", String(result.marketId || "\u2014")],
+      ["Yes", `${formatPrice(result.yes?.bid)} bid / ${formatPrice(result.yes?.ask)} ask / ${formatPrice(result.yes?.last)} last`],
+      ["No", `${formatPrice(result.no?.bid)} bid / ${formatPrice(result.no?.ask)} ask / ${formatPrice(result.no?.last)} last`],
+      ["Spread", result.spread != null ? `${formatPrice(result.spread)}` : "\u2014"],
     ],
   });
 }
@@ -274,11 +290,9 @@ async function orderbook(
   const id = requirePositional(positional, 0, "id", "context markets orderbook <id>");
   const ctx = readClient(flags as ClientFlags);
 
-  const result = await ctx.markets.fullOrderbook(id, {
+  const result: FullOrderbook = await ctx.markets.fullOrderbook(id, {
     depth: flags["depth"] ? parseInt(flags["depth"], 10) : undefined,
   });
-
-  const ob = result as any;
 
   // JSON mode: raw data
   if (getOutputMode() === "json") {
@@ -287,10 +301,10 @@ async function orderbook(
   }
 
   // Visual orderbook
-  const yesBids: { price: number; size: number }[] = ob.yes?.bids || [];
-  const yesAsks: { price: number; size: number }[] = ob.yes?.asks || [];
-  const noBids: { price: number; size: number }[] = ob.no?.bids || [];
-  const noAsks: { price: number; size: number }[] = ob.no?.asks || [];
+  const yesBids: { price: number; size: number }[] = result.yes?.bids || [];
+  const yesAsks: { price: number; size: number }[] = result.yes?.asks || [];
+  const noBids: { price: number; size: number }[] = result.no?.bids || [];
+  const noAsks: { price: number; size: number }[] = result.no?.asks || [];
 
   function renderSide(
     label: string,
@@ -348,7 +362,7 @@ async function orderbook(
   }
 
   console.log();
-  console.log(chalk.bold(`  Orderbook`) + chalk.dim(` · ${ob.marketId || ""}`));
+  console.log(chalk.bold(`  Orderbook`) + chalk.dim(` · ${result.marketId || ""}`));
 
   renderSide("YES", yesBids, yesAsks);
   renderSide("NO", noBids, noAsks);
@@ -378,7 +392,7 @@ async function simulate(
 
   const ctx = readClient(flags as ClientFlags);
 
-  const result = await ctx.markets.simulate(id, {
+  const result: SimulateResult = await ctx.markets.simulate(id, {
     side: side as "yes" | "no",
     amount,
     amountType:
@@ -386,15 +400,14 @@ async function simulate(
     trader: flags["trader"] || undefined,
   });
 
-  const sim = result as any;
   out(result, {
     detail: [
-      ["Market", String(sim.marketId || "\u2014")],
-      ["Side", String(sim.side || "\u2014")],
-      ["Amount", String(sim.amount ?? "\u2014")],
-      ["Est. Contracts", String(sim.estimatedContracts ?? "\u2014")],
-      ["Avg Price", formatPrice(sim.estimatedAvgPrice)],
-      ["Slippage", sim.estimatedSlippage != null ? `${(sim.estimatedSlippage * 100).toFixed(1)}%` : "\u2014"],
+      ["Market", String(result.marketId || "\u2014")],
+      ["Side", String(result.side || "\u2014")],
+      ["Amount", String(result.amount ?? "\u2014")],
+      ["Est. Contracts", String(result.estimatedContracts ?? "\u2014")],
+      ["Avg Price", formatPrice(result.estimatedAvgPrice)],
+      ["Slippage", result.estimatedSlippage != null ? `${(result.estimatedSlippage * 100).toFixed(1)}%` : "\u2014"],
     ],
   });
 }
@@ -409,9 +422,10 @@ async function priceHistory(
 ): Promise<void> {
   const id = requirePositional(positional, 0, "id", "context markets price-history <id>");
   const ctx = readClient(flags as ClientFlags);
+  const timeframe = parsePriceTimeframe(flags["timeframe"]);
 
   const result = await ctx.markets.priceHistory(id, {
-    timeframe: (flags["timeframe"] as any) || undefined,
+    timeframe,
   });
 
   out(result);
@@ -473,21 +487,20 @@ async function activity(
   const id = requirePositional(positional, 0, "id", "context markets activity <id>");
   const ctx = readClient(flags as ClientFlags);
 
-  const result = await ctx.markets.activity(id, {
+  const result: ActivityResponse = await ctx.markets.activity(id, {
     limit: flags["limit"] ? parseInt(flags["limit"], 10) : undefined,
     cursor: flags["cursor"] || undefined,
   });
 
-  const act = result as any;
   out(result, {
-    rows: act.activity || [],
+    rows: result.activity || [],
     columns: [
       { key: "type", label: "Type" },
       { key: "timestamp", label: "Time", format: formatDate },
     ],
     numbered: true,
     emptyMessage: "No activity found.",
-    cursor: act.pagination?.cursor || null,
+    cursor: result.pagination?.cursor || null,
   });
 }
 
@@ -500,21 +513,20 @@ async function globalActivity(
 ): Promise<void> {
   const ctx = readClient(flags as ClientFlags);
 
-  const result = await ctx.markets.globalActivity({
+  const result: ActivityResponse = await ctx.markets.globalActivity({
     limit: flags["limit"] ? parseInt(flags["limit"], 10) : undefined,
     cursor: flags["cursor"] || undefined,
   });
 
-  const act = result as any;
   out(result, {
-    rows: act.activity || [],
+    rows: result.activity || [],
     columns: [
       { key: "type", label: "Type" },
       { key: "timestamp", label: "Time", format: formatDate },
     ],
     numbered: true,
     emptyMessage: "No activity found.",
-    cursor: act.pagination?.cursor || null,
+    cursor: result.pagination?.cursor || null,
   });
 }
 
@@ -529,12 +541,11 @@ async function create(
   const questionId = requirePositional(positional, 0, "questionId", "context markets create <questionId>");
   const ctx = tradingClient(flags as ClientFlags);
 
-  const result = await ctx.markets.create(questionId);
-  const r = result as any;
+  const result: CreateMarketResult = await ctx.markets.create(questionId);
   out(result, {
     detail: [
-      ["Market ID", String(r.marketId || "—")],
-      ["Tx Hash", String(r.txHash || "—")],
+      ["Market ID", String(result.marketId || "—")],
+      ["Tx Hash", String(result.txHash || "—")],
     ],
   });
 }

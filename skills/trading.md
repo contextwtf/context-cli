@@ -10,7 +10,7 @@ All trading commands require `CONTEXT_API_KEY` and `CONTEXT_PRIVATE_KEY`. All ou
 ## Placing a limit order
 
 ```bash
-bun src/cli.ts orders create \
+context orders create \
   --market 0xMarketId \
   --outcome yes \
   --side buy \
@@ -58,7 +58,7 @@ Flags:
 Fills immediately at the best available price:
 
 ```bash
-bun src/cli.ts orders market \
+context orders market \
   --market 0xMarketId \
   --outcome yes \
   --side buy \
@@ -95,7 +95,7 @@ Flags:
 Always simulate before placing large orders:
 
 ```bash
-bun src/cli.ts orders simulate \
+context orders simulate \
   --market 0xMarketId \
   --trader 0xYourAddress \
   --outcome yes \
@@ -142,7 +142,7 @@ Check `collateral.isSufficient` before placing the order. Check `summary.percent
 Cancel a single order by nonce:
 
 ```bash
-bun src/cli.ts orders cancel 0xOrderNonce
+context orders cancel 0xOrderNonce
 ```
 
 ```json
@@ -157,7 +157,7 @@ bun src/cli.ts orders cancel 0xOrderNonce
 Atomically cancel an old order and place a new one:
 
 ```bash
-bun src/cli.ts orders cancel-replace 0xOldNonce \
+context orders cancel-replace 0xOldNonce \
   --market 0xMarketId \
   --outcome yes \
   --side buy \
@@ -177,7 +177,7 @@ bun src/cli.ts orders cancel-replace 0xOldNonce \
 ### Create multiple orders at once
 
 ```bash
-bun src/cli.ts orders bulk-create --orders '[
+context orders bulk-create --orders '[
   {"marketId":"0xId","outcome":"yes","side":"buy","priceCents":60,"size":10},
   {"marketId":"0xId","outcome":"no","side":"buy","priceCents":35,"size":10}
 ]'
@@ -188,7 +188,7 @@ Returns an array of `{ success, order }` results.
 ### Cancel multiple orders
 
 ```bash
-bun src/cli.ts orders bulk-cancel --nonces 0xNonce1,0xNonce2,0xNonce3
+context orders bulk-cancel --nonces 0xNonce1,0xNonce2,0xNonce3
 ```
 
 ### Atomic create + cancel
@@ -196,7 +196,7 @@ bun src/cli.ts orders bulk-cancel --nonces 0xNonce1,0xNonce2,0xNonce3
 Create new orders and cancel old ones in a single call:
 
 ```bash
-bun src/cli.ts orders bulk \
+context orders bulk \
   --creates '[{"marketId":"0xId","outcome":"yes","side":"buy","priceCents":62,"size":10}]' \
   --cancels 0xOldNonce1,0xOldNonce2
 ```
@@ -216,13 +216,13 @@ bun src/cli.ts orders bulk \
 List your open orders:
 
 ```bash
-bun src/cli.ts orders mine --market 0xMarketId
+context orders mine --market 0xMarketId
 ```
 
 Recent orders (all statuses):
 
 ```bash
-bun src/cli.ts orders recent --window-seconds 3600 --limit 20
+context orders recent --window-seconds 3600 --limit 20
 ```
 
 Both return:
@@ -240,7 +240,7 @@ Both return:
 Positions:
 
 ```bash
-bun src/cli.ts portfolio get --kind active
+context portfolio get --kind active
 ```
 
 ```json
@@ -263,7 +263,7 @@ bun src/cli.ts portfolio get --kind active
 Balance:
 
 ```bash
-bun src/cli.ts portfolio balance
+context portfolio balance
 ```
 
 ```json
@@ -285,7 +285,7 @@ bun src/cli.ts portfolio balance
 After a market resolves:
 
 ```bash
-bun src/cli.ts portfolio claimable
+context portfolio claimable
 ```
 
 ```json
@@ -301,19 +301,19 @@ bun src/cli.ts portfolio claimable
 
 ```bash
 # 1. Check the orderbook
-bun src/cli.ts markets orderbook 0xMarketId --depth 10
+context markets orderbook 0xMarketId --depth 10
 
 # 2. Place bids on both sides
-bun src/cli.ts orders bulk-create --orders '[
+context orders bulk-create --orders '[
   {"marketId":"0xId","outcome":"yes","side":"buy","priceCents":60,"size":10},
   {"marketId":"0xId","outcome":"no","side":"buy","priceCents":35,"size":10}
 ]'
 
 # 3. Monitor fills
-bun src/cli.ts orders mine --market 0xMarketId
+context orders mine --market 0xMarketId
 
 # 4. Refresh quotes — cancel old, place new
-bun src/cli.ts orders bulk \
+context orders bulk \
   --creates '[{"marketId":"0xId","outcome":"yes","side":"buy","priceCents":61,"size":10}]' \
   --cancels 0xOldYesNonce
 ```
@@ -322,13 +322,13 @@ bun src/cli.ts orders bulk \
 
 ```bash
 # 1. Generate a market from a question
-bun src/cli.ts questions submit-and-wait "Will the Fed cut rates at the March 2026 meeting?"
+context questions submit-and-wait "Will the Fed cut rates at the March 2026 meeting?"
 
 # 2. Create the market on-chain (use question id from step 1)
-bun src/cli.ts markets create 0xQuestionId
+context markets create 0xQuestionId
 
 # 3. Place the first order
-bun src/cli.ts orders create --market 0xNewMarketId --outcome yes --side buy --price 55 --size 20
+context orders create --market 0xNewMarketId --outcome yes --side buy --price 55 --size 20
 ```
 
 See [`skills/market-creation.md`](market-creation.md) for the full market creation guide.
@@ -337,16 +337,16 @@ See [`skills/market-creation.md`](market-creation.md) for the full market creati
 
 ```bash
 # 1. Find a market
-bun src/cli.ts markets list --query "bitcoin" --status active --limit 5
+context markets search bitcoin --limit 5
 
 # 2. Check the price
-bun src/cli.ts markets quotes 0xMarketId
+context markets quotes 0xMarketId
 
 # 3. Buy YES shares
-bun src/cli.ts orders create --market 0xMarketId --outcome yes --side buy --price 65 --size 20
+context orders create --market 0xMarketId --outcome yes --side buy --price 65 --size 20
 
 # 4. Check position later
-bun src/cli.ts portfolio get --kind active --market 0xMarketId
+context portfolio get --kind active --market 0xMarketId
 ```
 
 ## Common errors

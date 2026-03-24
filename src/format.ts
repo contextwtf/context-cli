@@ -13,10 +13,6 @@ import {
 
 export type { TableConfig } from "./ui/output.js";
 
-/** BigInt-safe JSON replacer (kept for backward compat if anything imports it) */
-const replacer = (_key: string, value: unknown) =>
-  typeof value === "bigint" ? value.toString() : value;
-
 let _mode: OutputMode = "json";
 
 /** Set the global output mode (called once in cli.ts) */

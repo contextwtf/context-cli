@@ -10,7 +10,7 @@ All commands in this skill are read-only. You only need `CONTEXT_API_KEY`.
 ## Finding markets
 
 ```bash
-bun src/cli.ts markets list --query "bitcoin" --status active --sort-by volume --sort desc --limit 10
+context markets search bitcoin --limit 10
 ```
 
 ```json
@@ -45,21 +45,15 @@ bun src/cli.ts markets list --query "bitcoin" --status active --sort-by volume -
 `outcomeIndex 0` = NO, `outcomeIndex 1` = YES. Prices are in cents (63 = $0.63 per share).
 
 Search flags:
-- `--query <text>` — full-text search
-- `--status <active|pending|resolved|closed>`
-- `--sort-by <new|volume|trending|ending|chance>`
-- `--sort <asc|desc>`
 - `--limit <n>` — max results
-- `--cursor <token>` — pagination (use `cursor` from previous response)
-- `--visibility <visible|hidden|all>`
-- `--resolution-status <value>`
-- `--creator <address>`
-- `--category <slug>`
+- `--offset <n>` — pagination offset
+
+For filtered browsing, use `context markets list --status <...> --sort-by <...> --limit <n>`.
 
 ## Getting a single market
 
 ```bash
-bun src/cli.ts markets get 0xMarketId
+context markets get 0xMarketId
 ```
 
 Returns the same `Market` object shape as list results.
@@ -67,7 +61,7 @@ Returns the same `Market` object shape as list results.
 ## Checking current prices
 
 ```bash
-bun src/cli.ts markets quotes 0xMarketId
+context markets quotes 0xMarketId
 ```
 
 ```json
@@ -87,7 +81,7 @@ bun src/cli.ts markets quotes 0xMarketId
 ## Orderbook depth
 
 ```bash
-bun src/cli.ts markets orderbook 0xMarketId --depth 5
+context markets orderbook 0xMarketId --depth 5
 ```
 
 ```json
@@ -112,7 +106,7 @@ Use this to assess liquidity before placing large orders.
 Estimate cost and slippage before trading:
 
 ```bash
-bun src/cli.ts markets simulate 0xMarketId --side yes --amount 100 --amount-type usd
+context markets simulate 0xMarketId --side yes --amount 100 --amount-type usd
 ```
 
 ```json
@@ -136,7 +130,7 @@ Flags:
 ## Price history
 
 ```bash
-bun src/cli.ts markets price-history 0xMarketId --timeframe 1d
+context markets price-history 0xMarketId --timeframe 1d
 ```
 
 ```json
@@ -161,7 +155,7 @@ The oracle monitors external sources to evaluate market resolution.
 ### Oracle summary
 
 ```bash
-bun src/cli.ts markets oracle 0xMarketId
+context markets oracle 0xMarketId
 ```
 
 ```json
@@ -183,7 +177,7 @@ bun src/cli.ts markets oracle 0xMarketId
 ### Oracle probability estimates
 
 ```bash
-bun src/cli.ts markets oracle-quotes 0xMarketId
+context markets oracle-quotes 0xMarketId
 ```
 
 ```json
@@ -206,7 +200,7 @@ bun src/cli.ts markets oracle-quotes 0xMarketId
 ### Request a fresh estimate
 
 ```bash
-bun src/cli.ts markets request-oracle-quote 0xMarketId
+context markets request-oracle-quote 0xMarketId
 ```
 
 ```json
@@ -224,7 +218,7 @@ Poll `oracle-quotes` to see the result once `status` changes to `completed`.
 ### Market-specific activity
 
 ```bash
-bun src/cli.ts markets activity 0xMarketId --limit 10
+context markets activity 0xMarketId --limit 10
 ```
 
 ```json
@@ -240,7 +234,7 @@ bun src/cli.ts markets activity 0xMarketId --limit 10
 ### Global activity
 
 ```bash
-bun src/cli.ts markets global-activity --limit 10
+context markets global-activity --limit 10
 ```
 
 Same shape, `marketId` is `null`.
@@ -249,23 +243,23 @@ Same shape, `marketId` is `null`.
 
 ```bash
 # 1. Find interesting markets
-bun src/cli.ts markets list --status active --sort-by trending --limit 10
+context markets list --status active --sort-by trending --limit 10
 
 # 2. Read the market details
-bun src/cli.ts markets get 0xMarketId
+context markets get 0xMarketId
 
 # 3. Check current prices and spread
-bun src/cli.ts markets quotes 0xMarketId
+context markets quotes 0xMarketId
 
 # 4. Look at price history for trends
-bun src/cli.ts markets price-history 0xMarketId --timeframe 1w
+context markets price-history 0xMarketId --timeframe 1w
 
 # 5. Check oracle's probability estimate
-bun src/cli.ts markets oracle-quotes 0xMarketId
+context markets oracle-quotes 0xMarketId
 
 # 6. Assess orderbook liquidity
-bun src/cli.ts markets orderbook 0xMarketId --depth 10
+context markets orderbook 0xMarketId --depth 10
 
 # 7. Simulate your planned trade
-bun src/cli.ts markets simulate 0xMarketId --side yes --amount 50 --amount-type usd
+context markets simulate 0xMarketId --side yes --amount 50 --amount-type usd
 ```

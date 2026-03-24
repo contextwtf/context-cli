@@ -1,13 +1,15 @@
 import * as readline from "readline";
 import chalk from "chalk";
 import { parseArgs, setOutputMode } from "./format.js";
+import { cleanErrorMessage } from "./error.js";
 import { onResults } from "./ui/output.js";
 import { setShellReadline } from "./ui/prompt.js";
 
 let lastResults: Record<string, unknown>[] = [];
 let lastCursor: string | null = null;
 let lastCommand: string | null = null;
-let cursorHistory: string[] = []; // stack of previous cursors for "back"
+let lastRequestCursor: string | null = null;
+let cursorHistory: Array<string | "__first__"> = []; // stack of previous cursors for "back"
 
 /** Resolve #N to the ID from the last result set */
 function resolveRefs(input: string): string {
@@ -134,6 +136,10 @@ export async function runShell(): Promise<void> {
       return;
     }
 
+    const previousCommand = lastCommand;
+    const previousRequestCursor = lastRequestCursor;
+    const previousCursorHistory = [...cursorHistory];
+
     // Handle "next" and "back"
     let commandLine = trimmed;
     if (trimmed === "next") {
@@ -142,10 +148,7 @@ export async function runShell(): Promise<void> {
         rl.prompt();
         return;
       }
-      // Push current cursor onto history before advancing
-      const currentCursor = commandLine.match(/--cursor\s+(\S+)/)?.[1];
-      if (currentCursor) cursorHistory.push(currentCursor);
-      else if (lastCursor) cursorHistory.push("__first__"); // mark first page
+      cursorHistory.push(lastRequestCursor ?? "__first__");
       commandLine = `${lastCommand} --cursor ${lastCursor}`;
     } else if (trimmed === "back" || trimmed === "prev") {
       if (!lastCommand || cursorHistory.length === 0) {
@@ -177,16 +180,14 @@ export async function runShell(): Promise<void> {
     }
 
     // Save command for "next" (strip existing cursor)
-    const baseCommand = commandLine.replace(/\s+--cursor\s+\S+/g, "");
-    if (baseCommand !== lastCommand) {
-      // New command — reset pagination history
-      cursorHistory = [];
-    }
-    lastCommand = baseCommand;
+    const baseCommand = commandLine.replace(/\s+--cursor\s+\S+/g, "").trim();
+    const requestCursor = commandLine.match(/--cursor\s+(\S+)/)?.[1] ?? null;
+    const isNewCommand = baseCommand !== previousCommand;
 
     // Parse: prepend dummy args to match parseArgs expectation
     const argv = ["bun", "cli.ts", ...splitArgs(commandLine)];
     const parsed = parseArgs(argv);
+    let commandSucceeded = false;
 
     try {
       switch (parsed.command) {
@@ -256,15 +257,29 @@ ${chalk.dim("──────────────────────�
             ),
           );
       }
+      commandSucceeded = true;
     } catch (err: unknown) {
       // CancelError: user cancelled a prompt — already printed
       // FailError: validation error — already printed by fail()
       if (err instanceof Error && (err.name === "CancelError" || err.name === "FailError")) {
         // Already handled, just return to prompt
       } else {
-        const message = err instanceof Error ? err.message : String(err);
+        const raw = err instanceof Error ? err.message : String(err);
+        const message = cleanErrorMessage(raw);
         console.error(chalk.red(`  Error: ${message}`));
       }
+    }
+
+    if (commandSucceeded) {
+      if (isNewCommand) {
+        cursorHistory = [];
+      }
+      lastCommand = baseCommand;
+      lastRequestCursor = requestCursor;
+    } else {
+      cursorHistory = previousCursorHistory;
+      lastCommand = previousCommand;
+      lastRequestCursor = previousRequestCursor;
     }
 
     console.log();

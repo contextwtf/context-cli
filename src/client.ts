@@ -8,6 +8,8 @@ import type { Hex } from "viem";
 import { fail } from "./format.js";
 import { loadConfig } from "./config.js";
 
+const PRIVATE_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+
 export interface ClientFlags {
   "api-key"?: string;
   "private-key"?: string;
@@ -56,6 +58,9 @@ export function tradingClient(flags: ClientFlags = {}): ContextClient {
       "A private key is required for trading operations.",
       { hint: "Set CONTEXT_PRIVATE_KEY env var, pass --private-key <key>, or run `context setup`" },
     );
+  }
+  if (!privateKey.startsWith("0x") || privateKey.length !== 66 || !PRIVATE_KEY_PATTERN.test(privateKey)) {
+    fail("Invalid private key format. Expected 0x-prefixed 64-character hex string.");
   }
 
   const rpcUrl = flags["rpc-url"] ?? process.env.CONTEXT_RPC_URL ?? config.CONTEXT_RPC_URL;

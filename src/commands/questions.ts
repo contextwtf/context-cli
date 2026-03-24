@@ -3,6 +3,11 @@
 // ---------------------------------------------------------------------------
 
 import chalk from "chalk";
+import type {
+  AgentSubmitMarketDraft,
+  QuestionSubmission,
+  SubmitQuestionResult,
+} from "context-markets";
 import { tradingClient, type ClientFlags } from "../client.js";
 import {
   out,
@@ -54,9 +59,9 @@ export default async function handleQuestions(
     case "submit-and-wait":
       return submitAndWait(positional, flags);
     case "agent-submit":
-      return agentSubmit(positional, flags);
+      return agentSubmit(flags);
     case "agent-submit-and-wait":
-      return agentSubmitAndWait(positional, flags);
+      return agentSubmitAndWait(flags);
     case "help":
     case undefined:
       console.log(HELP);
@@ -70,34 +75,24 @@ export default async function handleQuestions(
 // Shared detail builder for submission responses
 // ---------------------------------------------------------------------------
 
-function submissionDetail(r: any): [string, string][] {
-  const questions = (r.questions || []) as { id: string; text?: string }[];
-  const similarMarkets = (r.similarMarkets || []) as {
-    id: string;
-    question: string;
-    shortQuestion: string;
-    similarity: number;
-  }[];
-  const rejections = (r.rejectionReasons || []) as {
-    code: string;
-    message: string;
-  }[];
+function submissionDetail(r: QuestionSubmission): [string, string][] {
+  const latestUpdate = r.statusUpdates.at(-1);
 
   return [
     ["Submission ID", String(r.submissionId || "—")],
     ["Status", String(r.status || "—")],
-    ...questions.flatMap((q, i) => [
+    ...r.questions.flatMap((q, i) => [
       [`Question ${i + 1}`, q.text || "—"] as [string, string],
       [`  Market ID`, q.id] as [string, string],
     ]),
-    ...(r.statusUpdates?.length
-      ? [["Latest Update", String((r.statusUpdates as any[]).at(-1)?.status || "—")] as [string, string]]
+    ...(latestUpdate
+      ? [["Latest Update", String(latestUpdate.status || "—")] as [string, string]]
       : []),
-    ...similarMarkets.flatMap((m, i) => [
+    ...(r.similarMarkets || []).flatMap((m, i) => [
       [`Similar ${i + 1}`, `${m.shortQuestion || m.question} (${Math.round(m.similarity * 100)}% match)`] as [string, string],
       [`  Market ID`, m.id] as [string, string],
     ]),
-    ...rejections.map((r) => [`Rejected`, `[${r.code}] ${r.message}`] as [string, string]),
+    ...(r.rejectionReasons || []).map((reason) => [`Rejected`, `[${reason.code}] ${reason.message}`] as [string, string]),
     ...(r.qualityExplanation ? [["Quality", String(r.qualityExplanation)] as [string, string]] : []),
     ...(r.refuseToResolve ? [["Warning", "Marked as unresolvable"] as [string, string]] : []),
     ...(r.appliedChanges?.length
@@ -117,12 +112,11 @@ async function submit(
   const question = requirePositional(positional, 0, "question", "context questions submit <question>");
   const ctx = tradingClient(flags as ClientFlags);
 
-  const result = await ctx.questions.submit(question);
-  const r = result as any;
+  const result: SubmitQuestionResult = await ctx.questions.submit(question);
   out(result, {
     detail: [
-      ["Submission ID", String(r.id || r.submissionId || "—")],
-      ["Status", String(r.status || "—")],
+      ["Submission ID", String(result.submissionId || "—")],
+      ["Status", String(result.status || "—")],
     ],
   });
 }
@@ -138,9 +132,8 @@ async function status(
   const submissionId = requirePositional(positional, 0, "submissionId", "context questions status <submissionId>");
   const ctx = tradingClient(flags as ClientFlags);
 
-  const result = await ctx.questions.getSubmission(submissionId);
-  const r = result as any;
-  out(result, { detail: submissionDetail(r) });
+  const result: QuestionSubmission = await ctx.questions.getSubmission(submissionId);
+  out(result, { detail: submissionDetail(result) });
 }
 
 // ---------------------------------------------------------------------------
@@ -159,7 +152,7 @@ async function submitAndWait(
     maxAttempts: flags["max-attempts"] ? parseInt(flags["max-attempts"], 10) : undefined,
   };
 
-  let result: any;
+  let result: QuestionSubmission;
 
   if (getOutputMode() === "table") {
     const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -180,14 +173,14 @@ async function submitAndWait(
     result = await ctx.questions.submitAndWait(question, opts);
   }
 
-  out(result, { detail: submissionDetail(result as any) });
+  out(result, { detail: submissionDetail(result) });
 }
 
 // ---------------------------------------------------------------------------
 // agent-submit helpers
 // ---------------------------------------------------------------------------
 
-function parseAgentSubmitFlags(flags: Record<string, string>) {
+function parseAgentSubmitFlags(flags: Record<string, string>): AgentSubmitMarketDraft {
   const formattedQuestion = flags["formatted-question"];
   const shortQuestion = flags["short-question"];
   const marketType = flags["market-type"] as "SUBJECTIVE" | "OBJECTIVE";
@@ -219,15 +212,14 @@ function parseAgentSubmitFlags(flags: Record<string, string>) {
 // ---------------------------------------------------------------------------
 
 async function agentSubmit(
-  positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
   const draft = parseAgentSubmitFlags(flags);
   const ctx = tradingClient(flags as ClientFlags);
-  const result = await ctx.questions.agentSubmit(draft);
+  const result: SubmitQuestionResult = await ctx.questions.agentSubmit(draft);
   out(result, {
     detail: [
-      ["Submission ID", String((result as any).submissionId || "—")],
+      ["Submission ID", String(result.submissionId || "—")],
     ],
   });
 }
@@ -237,7 +229,6 @@ async function agentSubmit(
 // ---------------------------------------------------------------------------
 
 async function agentSubmitAndWait(
-  positional: string[],
   flags: Record<string, string>,
 ): Promise<void> {
   const draft = parseAgentSubmitFlags(flags);
@@ -248,7 +239,7 @@ async function agentSubmitAndWait(
     maxAttempts: flags["max-attempts"] ? parseInt(flags["max-attempts"], 10) : undefined,
   };
 
-  let result: any;
+  let result: QuestionSubmission;
 
   if (getOutputMode() === "table") {
     const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];

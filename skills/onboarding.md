@@ -1,11 +1,11 @@
 ---
 name: context-onboarding
-description: Set up a new wallet for trading on Context prediction markets. Gasless — no ETH required.
+description: Set up a new wallet for trading on Context prediction markets, including the guided setup flow and gasless alternatives.
 ---
 
 # Onboarding
 
-Get from zero to trading-ready. The entire flow is gasless — you do not need ETH.
+Get from zero to trading-ready. `context setup` uses the on-chain approval/deposit flow, so you should expect to fund the wallet with ETH on Base before continuing. If you specifically want relayed flows, use the separate gasless commands below.
 
 ## Prerequisites
 
@@ -17,29 +17,26 @@ export CONTEXT_API_KEY="your-api-key"
 
 If you don't have a private key yet:
 
+**Interactive mode** (`context setup`): The CLI generates a new wallet and displays the private key **once** with a warning. You'll be asked to confirm you've backed it up. If you say no, the key is automatically saved to `~/.config/context/config.env`. You can also import an existing key (entered via masked password prompt — never echoed back).
+
+**JSON mode** (`context setup --output json`): The key is always saved to the config file automatically, since agents can't manually back up keys. The key is never included in JSON output.
+
 ```bash
-bun src/cli.ts setup
+context setup --output json
 ```
 
 ```json
 {
   "status": "new_wallet",
   "address": "0xYourNewAddress",
-  "privateKey": "0xYourNewPrivateKey",
+  "saved": true,
+  "configPath": "~/.config/context/config.env",
   "nextSteps": [
-    "Save the private key securely — it cannot be recovered.",
-    "Export it: export CONTEXT_PRIVATE_KEY=<key>",
-    "Fund the wallet with testnet ETH and USDC on Base Sepolia.",
-    "Run `context-cli approve` to approve contracts for trading.",
-    "Run `context-cli deposit <amount>` to deposit USDC into the exchange."
+    "Send ETH to the wallet on Base for gas fees.",
+    "Run `context approve --output json` to approve contracts.",
+    "Run `context deposit <amount> --output json` to deposit USDC."
   ]
 }
-```
-
-Export it immediately:
-
-```bash
-export CONTEXT_PRIVATE_KEY="0xYourNewPrivateKey"
 ```
 
 If you already have a key, just export it and skip to step 2.
@@ -47,17 +44,25 @@ If you already have a key, just export it and skip to step 2.
 ## Step 2: Mint test USDC
 
 ```bash
-bun src/cli.ts account mint-test-usdc --amount 1000
+context account mint-test-usdc --amount 1000
 ```
 
 This mints 1000 USDC to your wallet on Base Sepolia. You can call this multiple times.
 
-## Step 3: Approve contracts (gasless)
+## Step 3: Choose approval flow
 
-Use the gasless relayer — no ETH needed:
+Default guided setup:
 
 ```bash
-bun src/cli.ts gasless-approve
+context approve
+```
+
+This is the same on-chain approval flow that `context setup` walks through, and it needs ETH for gas.
+
+Gasless alternative:
+
+```bash
+context gasless-approve
 ```
 
 ```json
@@ -70,12 +75,12 @@ bun src/cli.ts gasless-approve
 }
 ```
 
-This approves the operator contract to execute trades on your behalf.
+Both variants approve the operator contract to execute trades on your behalf.
 
-## Step 4: Deposit USDC (gasless)
+## Step 4: Choose deposit flow
 
 ```bash
-bun src/cli.ts gasless-deposit 500
+context deposit 500
 ```
 
 ```json
@@ -91,10 +96,16 @@ bun src/cli.ts gasless-deposit 500
 
 This moves USDC from your wallet into the exchange (settlement balance). You can only trade with deposited USDC.
 
+Gasless alternative:
+
+```bash
+context gasless-deposit 500
+```
+
 ## Step 5: Verify everything
 
 ```bash
-bun src/cli.ts account status
+context account status
 ```
 
 ```json
@@ -116,7 +127,7 @@ You're ready to trade when:
 Confirm you have USDC deposited:
 
 ```bash
-bun src/cli.ts portfolio balance
+context portfolio balance
 ```
 
 ```json
@@ -139,8 +150,8 @@ bun src/cli.ts portfolio balance
 To add more USDC at any time:
 
 ```bash
-bun src/cli.ts account mint-test-usdc --amount 1000
-bun src/cli.ts gasless-deposit 1000
+context account mint-test-usdc --amount 1000
+context deposit 1000
 ```
 
 ## Withdrawing
@@ -148,7 +159,7 @@ bun src/cli.ts gasless-deposit 1000
 To move USDC from the exchange back to your wallet:
 
 ```bash
-bun src/cli.ts account withdraw 100
+context account withdraw 100
 ```
 
 ```json
@@ -168,4 +179,4 @@ If you have ETH for gas, you can use the on-chain versions instead:
 | `gasless-approve` | `approve` |
 | `gasless-deposit <amount>` | `deposit <amount>` |
 
-The gasless commands are recommended. They use a relayer and require only a signature.
+Use the gasless commands when you specifically want relayed approvals/deposits without funding ETH first.

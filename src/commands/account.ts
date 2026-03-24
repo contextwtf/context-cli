@@ -2,10 +2,12 @@
 // Account commands — wallet status, setup, deposits, withdrawals, minting
 // ---------------------------------------------------------------------------
 
+import type { AccountStatus, Balance } from "context-markets";
 import { formatEther } from "viem";
 import { tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, requirePositional, type ParsedArgs } from "../format.js";
 import { formatMoney, formatVolume, formatAddress, truncate } from "../ui/format.js";
+import { confirmAction } from "../ui/prompt.js";
 
 const HELP = `Usage: context account <subcommand> [options]
 
@@ -82,32 +84,51 @@ export default async function handleAccount(
 // status — check wallet status (balances, approvals)
 // ---------------------------------------------------------------------------
 
+interface MintTestUsdcResult {
+  amount?: number | string;
+  hash?: string;
+  txHash?: string;
+  tx_hash?: string;
+}
+
+function normalizeMintTestUsdcResult(result: unknown): MintTestUsdcResult {
+  if (!result || typeof result !== "object") return {};
+
+  const value = result as Record<string, unknown>;
+  return {
+    amount: typeof value.amount === "number" || typeof value.amount === "string"
+      ? value.amount
+      : undefined,
+    hash: typeof value.hash === "string" ? value.hash : undefined,
+    txHash: typeof value.txHash === "string" ? value.txHash : undefined,
+    tx_hash: typeof value.tx_hash === "string" ? value.tx_hash : undefined,
+  };
+}
+
 async function status(flags: Record<string, string>): Promise<void> {
   const ctx = tradingClient(flags as ClientFlags);
 
   // Fetch account status and portfolio balance in parallel
-  const [result, balanceResult] = await Promise.all([
+  const [result, balanceResult]: [AccountStatus, Balance] = await Promise.all([
     ctx.account.status(),
     ctx.portfolio.balance(),
   ]);
-  const s = result as any;
-  const b = balanceResult as any;
 
   // Format ETH balance from wei to human-readable
-  const ethFormatted = s.ethBalance != null
-    ? `${formatEther(BigInt(s.ethBalance))} ETH`
+  const ethFormatted = result.ethBalance != null
+    ? `${formatEther(result.ethBalance)} ETH`
     : "\u2014";
 
   out(result, {
     detail: [
-      ["Address", formatAddress(s.address)],
+      ["Address", formatAddress(result.address)],
       ["ETH Balance", ethFormatted],
-      ["Total Balance", formatVolume(b.usdc?.balance)],
-      ["Settlement", formatVolume(b.usdc?.settlementBalance)],
-      ["Wallet", formatVolume(b.usdc?.walletBalance)],
-      ["USDC Allowance", s.usdcAllowance ? "\u2713 Approved" : "\u2717 None"],
-      ["Operator", s.isOperatorApproved ? "\u2713 Approved" : "\u2717 Not approved"],
-      ["Needs Setup", s.isReady ? "No" : "Yes \u2014 run `context setup`"],
+      ["Total Balance", formatVolume(balanceResult.usdc?.balance)],
+      ["Settlement", formatVolume(balanceResult.usdc?.settlementBalance)],
+      ["Wallet", formatVolume(balanceResult.usdc?.walletBalance)],
+      ["USDC Allowance", result.usdcAllowance ? "\u2713 Approved" : "\u2717 None"],
+      ["Operator", result.isOperatorApproved ? "\u2713 Approved" : "\u2717 Not approved"],
+      ["Needs Setup", result.isReady ? "No" : "Yes \u2014 run `context setup`"],
     ],
   });
 }
@@ -143,12 +164,12 @@ async function mintTestUsdc(flags: Record<string, string>): Promise<void> {
 
   const ctx = tradingClient(flags as ClientFlags);
   const result = await ctx.account.mintTestUsdc(amount);
-  const r = result as any;
+  const r = normalizeMintTestUsdcResult(result);
   out(result, {
     detail: [
       ["Status", "\u2713 Minted"],
       ["Amount", formatMoney(r.amount ?? amount)],
-      ["Tx Hash", formatAddress(r.txHash || r.tx_hash)],
+      ["Tx Hash", formatAddress(r.txHash || r.tx_hash || r.hash)],
     ],
   });
 }
@@ -174,6 +195,7 @@ async function deposit(
   }
 
   const ctx = tradingClient(flags as ClientFlags);
+  await confirmAction(`Deposit ${amount} USDC?`, flags);
   const result = await ctx.account.deposit(amount);
 
   out({ status: "deposited", amount_usdc: amount, tx_hash: result.txHash }, {
@@ -206,6 +228,7 @@ async function withdraw(
   }
 
   const ctx = tradingClient(flags as ClientFlags);
+  await confirmAction(`Withdraw ${amount} USDC?`, flags);
   const txHash = await ctx.account.withdraw(amount);
 
   out({ status: "withdrawn", amount_usdc: amount, tx_hash: txHash }, {
@@ -235,6 +258,7 @@ async function mintCompleteSets(
   }
 
   const ctx = tradingClient(flags as ClientFlags);
+  await confirmAction(`Mint ${amount} complete sets for ${truncate(marketId, 20)}?`, flags);
   const txHash = await ctx.account.mintCompleteSets(marketId, amount);
 
   out({ status: "minted", market_id: marketId, amount, tx_hash: txHash }, {
@@ -269,6 +293,7 @@ async function burnCompleteSets(
   const creditInternal = creditInternalRaw !== "false";
 
   const ctx = tradingClient(flags as ClientFlags);
+  await confirmAction(`Burn ${amount} complete sets for ${truncate(marketId, 20)}?`, flags);
   const txHash = await ctx.account.burnCompleteSets(
     marketId,
     amount,

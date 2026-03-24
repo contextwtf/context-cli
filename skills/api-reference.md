@@ -1,6 +1,6 @@
 ---
 name: context-api-reference
-description: Complete command reference for context-cli with all flags and response types.
+description: Complete command reference for the context CLI with all flags and response types.
 ---
 
 # API Reference
@@ -12,12 +12,11 @@ All commands output JSON to stdout. Errors output JSON to stderr with exit code 
 ### markets list
 
 ```
-bun src/cli.ts markets list [flags]
+context markets list [flags]
 ```
 
 | Flag | Required | Description |
 |---|---|---|
-| `--query <text>` | | Full-text search |
 | `--status <value>` | | `active`, `pending`, `resolved`, `closed` |
 | `--sort-by <field>` | | `new`, `volume`, `trending`, `ending`, `chance` |
 | `--sort <dir>` | | `asc`, `desc` |
@@ -74,10 +73,18 @@ Response: `MarketList`
 }
 ```
 
+### markets search
+
+```
+context markets search <query> [--limit <n>] [--offset <n>]
+```
+
+Response: `MarketSearchResult`
+
 ### markets get
 
 ```
-bun src/cli.ts markets get <id>
+context markets get <id>
 ```
 
 Response: single `Market` object (same shape as list items).
@@ -85,7 +92,7 @@ Response: single `Market` object (same shape as list items).
 ### markets quotes
 
 ```
-bun src/cli.ts markets quotes <id>
+context markets quotes <id>
 ```
 
 Response: `Quotes`
@@ -103,7 +110,7 @@ Response: `Quotes`
 ### markets orderbook
 
 ```
-bun src/cli.ts markets orderbook <id> [--depth <n>]
+context markets orderbook <id> [--depth <n>]
 ```
 
 Response: `FullOrderbook`
@@ -126,7 +133,7 @@ Response: `FullOrderbook`
 ### markets simulate
 
 ```
-bun src/cli.ts markets simulate <id> --side <yes|no> --amount <n> [--amount-type <usd|contracts>] [--trader <addr>]
+context markets simulate <id> --side <yes|no> --amount <n> [--amount-type <usd|contracts>] [--trader <addr>]
 ```
 
 Response: `SimulateResult`
@@ -146,7 +153,7 @@ Response: `SimulateResult`
 ### markets price-history
 
 ```
-bun src/cli.ts markets price-history <id> [--timeframe <1h|6h|1d|1w|1M|all>]
+context markets price-history <id> [--timeframe <1h|6h|1d|1w|1M|all>]
 ```
 
 Response: `PriceHistory`
@@ -163,7 +170,7 @@ Response: `PriceHistory`
 ### markets oracle
 
 ```
-bun src/cli.ts markets oracle <id>
+context markets oracle <id>
 ```
 
 Response: `OracleResponse`
@@ -187,7 +194,7 @@ Response: `OracleResponse`
 ### markets oracle-quotes
 
 ```
-bun src/cli.ts markets oracle-quotes <id>
+context markets oracle-quotes <id>
 ```
 
 Response: `OracleQuotesResponse`
@@ -210,7 +217,7 @@ Response: `OracleQuotesResponse`
 ### markets request-oracle-quote
 
 ```
-bun src/cli.ts markets request-oracle-quote <id>
+context markets request-oracle-quote <id>
 ```
 
 Response: `OracleQuoteRequestResult`
@@ -222,7 +229,7 @@ Response: `OracleQuoteRequestResult`
 ### markets activity
 
 ```
-bun src/cli.ts markets activity <id> [--limit <n>] [--cursor <token>]
+context markets activity <id> [--limit <n>] [--cursor <token>]
 ```
 
 Response: `ActivityResponse`
@@ -238,7 +245,7 @@ Response: `ActivityResponse`
 ### markets create
 
 ```
-bun src/cli.ts markets create <questionId>
+context markets create <questionId>
 ```
 
 Requires signer. Creates an on-chain market from a generated question ID (obtained via `questions submit-and-wait`).
@@ -255,7 +262,7 @@ Response: `CreateMarketResult`
 ### markets global-activity
 
 ```
-bun src/cli.ts markets global-activity [--limit <n>] [--cursor <token>]
+context markets global-activity [--limit <n>] [--cursor <token>]
 ```
 
 Response: same as `activity`, `marketId` is `null`.
@@ -269,7 +276,7 @@ All questions commands require a signer.
 ### questions submit
 
 ```
-bun src/cli.ts questions submit <question>
+context questions submit <question>
 ```
 
 Submits a question for AI-powered market generation.
@@ -289,7 +296,7 @@ Response: `SubmitQuestionResult`
 ### questions status
 
 ```
-bun src/cli.ts questions status <submissionId>
+context questions status <submissionId>
 ```
 
 Polls the status of a question submission.
@@ -319,7 +326,7 @@ Response: `QuestionSubmission`
 ### questions submit-and-wait
 
 ```
-bun src/cli.ts questions submit-and-wait <question> [--poll-interval <ms>] [--max-attempts <n>]
+context questions submit-and-wait <question> [--poll-interval <ms>] [--max-attempts <n>]
 ```
 
 Submits a question and polls until completion. Returns the final `QuestionSubmission` (same shape as `questions status` with `status: "completed"`).
@@ -336,7 +343,7 @@ Submits a question and polls until completion. Returns the final `QuestionSubmis
 ### orders list
 
 ```
-bun src/cli.ts orders list [--trader <addr>] [--market <id>] [--status <value>] [--cursor <token>] [--limit <n>]
+context orders list [--trader <addr>] [--market <id>] [--status <value>] [--cursor <token>] [--limit <n>]
 ```
 
 Uses read-only client if `--trader` given, trading client otherwise.
@@ -370,7 +377,7 @@ Response: `OrderList`
 ### orders mine
 
 ```
-bun src/cli.ts orders mine [--market <id>]
+context orders mine [--market <id>]
 ```
 
 Requires signer. Response: same as `orders list`.
@@ -378,7 +385,7 @@ Requires signer. Response: same as `orders list`.
 ### orders get
 
 ```
-bun src/cli.ts orders get <id>
+context orders get <id>
 ```
 
 Response: single `Order` object.
@@ -386,7 +393,7 @@ Response: single `Order` object.
 ### orders recent
 
 ```
-bun src/cli.ts orders recent [--trader <addr>] [--market <id>] [--status <value>] [--limit <n>] [--window-seconds <n>]
+context orders recent [--trader <addr>] [--market <id>] [--status <value>] [--limit <n>] [--window-seconds <n>]
 ```
 
 Requires signer. Response: same as `orders list`.
@@ -394,7 +401,7 @@ Requires signer. Response: same as `orders list`.
 ### orders simulate
 
 ```
-bun src/cli.ts orders simulate --market <id> --trader <addr> --size <n> --price <n> [--outcome <yes|no>] [--side <bid|ask>]
+context orders simulate --market <id> --trader <addr> --size <n> --price <n> [--outcome <yes|no>] [--side <bid|ask>]
 ```
 
 Response: `OrderSimulateResult`
@@ -433,7 +440,7 @@ Response: `OrderSimulateResult`
 ### orders create
 
 ```
-bun src/cli.ts orders create --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n> [--expiry-seconds <n>] [--inventory-mode <any|hold|mint>] [--maker-role <any|taker>]
+context orders create --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n> [--expiry-seconds <n>] [--inventory-mode <any|hold|mint>] [--maker-role <any|taker>]
 ```
 
 Requires signer. Response: `CreateOrderResult`
@@ -445,7 +452,7 @@ Requires signer. Response: `CreateOrderResult`
 ### orders market
 
 ```
-bun src/cli.ts orders market --market <id> --outcome <yes|no> --side <buy|sell> --max-price <1-99> --max-size <n> [--expiry-seconds <n>]
+context orders market --market <id> --outcome <yes|no> --side <buy|sell> --max-price <1-99> --max-size <n> [--expiry-seconds <n>]
 ```
 
 Requires signer. Response: `CreateOrderResult` (same as create).
@@ -453,7 +460,7 @@ Requires signer. Response: `CreateOrderResult` (same as create).
 ### orders cancel
 
 ```
-bun src/cli.ts orders cancel <nonce>
+context orders cancel <nonce>
 ```
 
 Requires signer. Response: `CancelResult`
@@ -465,7 +472,7 @@ Requires signer. Response: `CancelResult`
 ### orders cancel-replace
 
 ```
-bun src/cli.ts orders cancel-replace <nonce> --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>
+context orders cancel-replace <nonce> --market <id> --outcome <yes|no> --side <buy|sell> --price <1-99> --size <n>
 ```
 
 Requires signer. Response: `CancelReplaceResult`
@@ -480,7 +487,7 @@ Requires signer. Response: `CancelReplaceResult`
 ### orders bulk-create
 
 ```
-bun src/cli.ts orders bulk-create --orders '<JSON array of PlaceOrderRequest>'
+context orders bulk-create --orders '<JSON array of PlaceOrderRequest>'
 ```
 
 PlaceOrderRequest: `{ marketId, outcome, side, priceCents, size, expirySeconds?, inventoryModeConstraint?, makerRoleConstraint? }`
@@ -490,7 +497,7 @@ Requires signer. Response: array of `CreateOrderResult`.
 ### orders bulk-cancel
 
 ```
-bun src/cli.ts orders bulk-cancel --nonces <hex,hex,...>
+context orders bulk-cancel --nonces <hex,hex,...>
 ```
 
 Requires signer. Response: array of `CancelResult`.
@@ -498,7 +505,7 @@ Requires signer. Response: array of `CancelResult`.
 ### orders bulk
 
 ```
-bun src/cli.ts orders bulk [--creates '<JSON array>'] [--cancels <hex,hex,...>]
+context orders bulk [--creates '<JSON array>'] [--cancels <hex,hex,...>]
 ```
 
 At least one of `--creates` or `--cancels` required. Requires signer. Response: `BulkResult`
@@ -521,7 +528,7 @@ All portfolio commands use a read-only client if `--address` is given, trading c
 ### portfolio get
 
 ```
-bun src/cli.ts portfolio get [--address <addr>] [--kind <all|active|won|lost|claimable>] [--market <id>] [--cursor <token>] [--page-size <n>]
+context portfolio get [--address <addr>] [--kind <all|active|won|lost|claimable>] [--market <id>] [--cursor <token>] [--page-size <n>]
 ```
 
 Response: `Portfolio`
@@ -548,7 +555,7 @@ Response: `Portfolio`
 ### portfolio claimable
 
 ```
-bun src/cli.ts portfolio claimable [--address <addr>]
+context portfolio claimable [--address <addr>]
 ```
 
 Response: `ClaimableResponse`
@@ -579,7 +586,7 @@ Response: `ClaimableResponse`
 ### portfolio stats
 
 ```
-bun src/cli.ts portfolio stats [--address <addr>]
+context portfolio stats [--address <addr>]
 ```
 
 Response: `PortfolioStats`
@@ -591,7 +598,7 @@ Response: `PortfolioStats`
 ### portfolio balance
 
 ```
-bun src/cli.ts portfolio balance [--address <addr>]
+context portfolio balance [--address <addr>]
 ```
 
 Response: `Balance`
@@ -620,7 +627,7 @@ Response: `Balance`
 ### portfolio token-balance
 
 ```
-bun src/cli.ts portfolio token-balance <address> <token-address>
+context portfolio token-balance <address> <token-address>
 ```
 
 Response: `TokenBalance`
@@ -638,7 +645,7 @@ All account commands require a signer.
 ### account status
 
 ```
-bun src/cli.ts account status
+context account status
 ```
 
 Response: `AccountStatus`
@@ -659,7 +666,7 @@ Response: `AccountStatus`
 ### account setup
 
 ```
-bun src/cli.ts account setup
+context account setup
 ```
 
 Response: `SetupResult`
@@ -674,7 +681,7 @@ Response: `SetupResult`
 ### account mint-test-usdc
 
 ```
-bun src/cli.ts account mint-test-usdc [--amount <n>]
+context account mint-test-usdc [--amount <n>]
 ```
 
 Default amount: 1000.
@@ -682,7 +689,7 @@ Default amount: 1000.
 ### account deposit
 
 ```
-bun src/cli.ts account deposit <amount>
+context account deposit <amount>
 ```
 
 Response:
@@ -694,7 +701,7 @@ Response:
 ### account withdraw
 
 ```
-bun src/cli.ts account withdraw <amount>
+context account withdraw <amount>
 ```
 
 Response:
@@ -706,7 +713,7 @@ Response:
 ### account mint-complete-sets
 
 ```
-bun src/cli.ts account mint-complete-sets <market-id> <amount>
+context account mint-complete-sets <market-id> <amount>
 ```
 
 Response:
@@ -718,7 +725,7 @@ Response:
 ### account burn-complete-sets
 
 ```
-bun src/cli.ts account burn-complete-sets <market-id> <amount> [--credit-internal <true|false>]
+context account burn-complete-sets <market-id> <amount> [--credit-internal <true|false>]
 ```
 
 Response:
@@ -732,11 +739,11 @@ Response:
 ## Onboarding shortcuts
 
 ```
-bun src/cli.ts setup                     # Generate wallet or check status
-bun src/cli.ts gasless-approve           # Approve contracts (no gas)
-bun src/cli.ts gasless-deposit <amount>  # Deposit USDC (no gas)
-bun src/cli.ts approve                   # Approve contracts (needs ETH)
-bun src/cli.ts deposit <amount>          # Deposit USDC (needs ETH)
+context setup                     # Generate wallet or check status
+context gasless-approve           # Approve contracts (no gas)
+context gasless-deposit <amount>  # Deposit USDC (no gas)
+context approve                   # Approve contracts (needs ETH)
+context deposit <amount>          # Deposit USDC (needs ETH)
 ```
 
 ### setup (no key)
@@ -747,7 +754,7 @@ Response:
 {
   "status": "new_wallet",
   "address": "0xAddress",
-  "privateKey": "0xHex",
+  "privateKey": "(saved to ~/.config/context/config.env)",
   "nextSteps": ["string"]
 }
 ```
@@ -802,5 +809,5 @@ Exit code: 1. Output: stderr.
 |---|---|---|
 | `--api-key <key>` | `CONTEXT_API_KEY` | API key (required for all commands) |
 | `--private-key <key>` | `CONTEXT_PRIVATE_KEY` | Private key (required for trading) |
-| `--rpc-url <url>` | `CONTEXT_RPC_URL` | Base Sepolia RPC URL |
+| `--rpc-url <url>` | `CONTEXT_RPC_URL` | Custom RPC URL |
 | `--base-url <url>` | `CONTEXT_BASE_URL` | API base URL |

@@ -47,7 +47,7 @@ export function loadConfig(): Record<string, string> {
 
 /** Save config values to ~/.config/context/config.env. Merges with existing. */
 export function saveConfig(values: Record<string, string>): void {
-  mkdirSync(CONFIG_DIR, { recursive: true });
+  mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   const existing = loadConfig();
   const merged = { ...existing, ...values };
   writeFileSync(CONFIG_FILE, serializeEnvFile(merged), { mode: 0o600 });
