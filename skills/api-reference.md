@@ -754,7 +754,8 @@ Response:
 {
   "status": "new_wallet",
   "address": "0xAddress",
-  "privateKey": "(saved to ~/.config/context/config.env)",
+  "saved": true,
+  "configPath": "~/.config/context/config.env",
   "nextSteps": ["string"]
 }
 ```

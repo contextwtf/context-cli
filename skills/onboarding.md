@@ -22,7 +22,7 @@ If you don't have a private key yet:
 **JSON mode** (`context setup --output json`): The key is always saved to the config file automatically, since agents can't manually back up keys. The key is never included in JSON output.
 
 ```bash
-context setup --output json
+context setup --output json --api-key <key>
 ```
 
 ```json
@@ -85,12 +85,9 @@ context deposit 500
 
 ```json
 {
-  "success": true,
-  "txHash": "0x...",
-  "user": "0xYourAddress",
-  "token": "0x...",
-  "amount": "500000000",
-  "relayer": "0x..."
+  "status": "deposited",
+  "amount_usdc": 500,
+  "tx_hash": "0x..."
 }
 ```
 

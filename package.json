@@ -1,6 +1,6 @@
 {
   "name": "context-markets-cli",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "CLI for trading on Context prediction markets",
   "author": "Context",

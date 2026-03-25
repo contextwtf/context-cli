@@ -136,9 +136,10 @@ Options:
   --chain <chain>       Target chain (default: mainnet)
   --yes                 Skip confirmations
   --save                Save wallet to config file (for --output json)
+                       (always on in --output json mode)
 
 Agent workflow (non-interactive):
-  context setup --output json --save           Generate wallet, save to config
+  context setup --output json                  Generate wallet, save to config
   context approve --output json                Approve contracts
   context deposit <amount> --output json       Deposit USDC`);
           break;

@@ -4,20 +4,17 @@
 
 import * as p from "@clack/prompts";
 import chalk from "chalk";
-import { ContextApiError, type AccountStatus } from "context-markets";
+import type { AccountStatus } from "context-markets";
 import { formatEther } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { tradingClient, type ClientFlags } from "../client.js";
 import { out, fail, getOutputMode, requirePositional, type ParsedArgs } from "../format.js";
 import { loadConfig, saveConfig, configPath } from "../config.js";
+import { cleanErrorMessage } from "../error.js";
 import { confirmAction } from "../ui/prompt.js";
 
 const MIN_ETH_FOR_GAS = 1_000_000_000_000n; // 0.000001 ETH — just enough for a few txs
 const PRIVATE_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 export default async function handleSetup(parsed: ParsedArgs): Promise<void> {
   const { subcommand, positional, flags } = parsed;
@@ -43,30 +40,6 @@ export default async function handleSetup(parsed: ParsedArgs): Promise<void> {
 // ---------------------------------------------------------------------------
 // Shared approve → mint → deposit flow
 // ---------------------------------------------------------------------------
-
-/** Dig through error cause chain to find the most useful message */
-function formatError(err: unknown): string {
-  if (!(err instanceof Error)) return String(err);
-
-  // Walk the cause chain to find the deepest message
-  let deepest = err;
-  let current: unknown = err;
-  while (current instanceof Error && current.cause) {
-    current = current.cause;
-    if (current instanceof Error) deepest = current;
-  }
-
-  if (err instanceof ContextApiError) {
-    const body = err.body;
-    if (isRecord(body) && typeof body.message === "string") return body.message;
-    if (typeof body === "string") return body;
-  }
-
-  // Use the deepest cause message if it's more specific
-  const deepMsg = deepest.message.split("\n")[0];
-  const topMsg = err.message.split("\n")[0];
-  return deepMsg !== topMsg && deepMsg.length > 5 ? `${topMsg}: ${deepMsg}` : topMsg;
-}
 
 /**
  * Check ETH balance and wait for funding if needed.
@@ -126,7 +99,8 @@ async function approveWithRetry(ctx: ReturnType<typeof tradingClient>): Promise<
       return true;
     } catch (err) {
       s.stop("Approval failed");
-      p.log.warning(formatError(err));
+      const msg = cleanErrorMessage(err instanceof Error ? err.message : String(err));
+      p.log.warning(msg);
 
       const action = await p.select({
         message: "What would you like to do?",
@@ -254,7 +228,8 @@ async function onboardingFlow(ctx: ReturnType<typeof tradingClient>): Promise<bo
         deposited = true;
       } catch (err) {
         sp.stop("Deposit failed");
-        p.log.warning(formatError(err));
+        const msg = cleanErrorMessage(err instanceof Error ? err.message : String(err));
+        p.log.warning(msg);
 
         const action = await p.select({
           message: "What would you like to do?",
