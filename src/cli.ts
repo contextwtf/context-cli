@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import { parseArgs, fail, setOutputMode, getOutputMode } from "./format.js";
+import { cleanErrorMessage } from "./error-format.js";
 import { printFail } from "./ui/output.js";
 import { cleanErrorMessage } from "./error.js";
 import chalk from "chalk";
